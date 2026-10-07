@@ -1,22 +1,33 @@
 'use strict';
 
 /* ================= 운동 정의 ================= */
-// 손가락 조합 (i=검지 m=중지 r=약지 p=새끼)
+// 손가락 조합 (i=검지 m=중지 r=약지 p=새끼). 클라이밍에서 흔히 쓰는 이름 기준
+// pick: 편집 화면 버튼 글자, who: 쓰는 손가락
 const FINGERS = {
-  imrp: { label: '4봉', en: '4 Fingers' },
-  imr: { label: '3봉', en: 'Front 3' },
-  mrp: { label: '3봉 뒤', en: 'Back 3' },
-  im: { label: '2봉 앞', en: 'Index + Middle' },
-  mr: { label: '2봉 가운데', en: 'Middle + Ring' },
-  rp: { label: '2봉 뒤', en: 'Ring + Pinky' },
+  imrp: { label: '4핑거', pick: '4핑거', who: '검지~새끼' },
+  imr: { label: '프론트 3', pick: '프론트 3', who: '검지·중지·약지' },
+  mrp: { label: '백 3', pick: '백 3', who: '중지·약지·새끼' },
+  im: { label: '프론트 2', pick: '프론트 2', who: '검지·중지' },
+  mr: { label: '미들 2', pick: '미들 2', who: '중지·약지' },
+  rp: { label: '백 2', pick: '백 2', who: '약지·새끼' },
+  i: { label: '모노 검지', pick: '검지', who: '검지' },
+  m: { label: '모노 중지', pick: '중지', who: '중지' },
+  r: { label: '모노 약지', pick: '약지', who: '약지' },
+  p: { label: '모노 새끼', pick: '새끼', who: '새끼' },
 };
+const FINGER_GROUPS = [
+  ['4 핑거', ['imrp']],
+  ['3 핑거', ['imr', 'mrp']],
+  ['2 핑거', ['im', 'mr', 'rp']],
+  ['모노 (1 핑거)', ['i', 'm', 'r', 'p']],
+];
 const GRIPS = {
   half: { ko: '하프크림프', en: 'Half Crimp' },
   open: { ko: '오픈크림프', en: 'Open Crimp' },
   full: { ko: '풀크림프', en: 'Full Crimp' },
 };
 const exName = it => `${FINGERS[it.fingers].label} ${GRIPS[it.grip].ko}`;
-const exSub = it => `${GRIPS[it.grip].en} · ${FINGERS[it.fingers].en}`;
+const exSub = it => `${GRIPS[it.grip].en} · ${FINGERS[it.fingers].who}`;
 
 // 완료 후 선택하는 홀드 보드 (홀드 목록·그림은 art.js의 BOARD_HOLDS / boardSVG)
 const BOARDS = { bm1000: 'BM 1000', bm2000: 'BM 2000', crimp: '크림프' };
@@ -287,9 +298,12 @@ function renderEditor() {
       <button class="ed-del" data-act="del" aria-label="삭제"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
     </li>`).join('');
 
-  $('add-fingers').innerHTML = Object.entries(FINGERS).map(([k, f]) => `
-    <button class="add-opt ${k === addSel.fingers ? 'active' : ''}" data-fingers="${k}">
-      <span class="add-art">${handSVG(k, 'L', addSel.grip)}</span>${f.label}</button>`).join('');
+  $('add-fingers').innerHTML = FINGER_GROUPS.map(([title, keys]) => `
+    <div class="add-group"><div class="add-group-t">${title}</div>
+      <div class="add-grid g${keys.length}">${keys.map(k => `
+        <button class="add-opt ${k === addSel.fingers ? 'active' : ''}" data-fingers="${k}">
+          <b>${FINGERS[k].pick}</b>${keys.length < 4 ? `<small>${FINGERS[k].who}</small>` : ''}</button>`).join('')}
+      </div></div>`).join('');
   document.querySelectorAll('[data-addgrip]').forEach(b => b.classList.toggle('active', b.dataset.addgrip === addSel.grip));
   document.querySelectorAll('[data-addone]').forEach(b => b.classList.toggle('active', (b.dataset.addone === '1') === addSel.one));
   $('btn-ed-add').textContent = `+ ${exName(addSel)} ${addSel.one ? '(한손)' : '(양손)'} 추가`;
