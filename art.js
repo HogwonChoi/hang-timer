@@ -1,7 +1,7 @@
 'use strict';
 /* art.js — 행보드 인터벌 타이머용 인라인 SVG 아트 (의존성 없음)
    전역: handSVG(fingers, side, grip) / BOARD_HOLDS / BOARD_NAMES / boardSVG(boardKey, selectedId)
-   handSVG 는 크림프 종류(grip)만 그린다. fingers·side 는 호출 호환용 인자
+   handSVG 는 원형 아이콘(손가락 수 + 크림프 종류)을 그린다. side 는 호출 호환용 인자
    주의: 전역 CSS 가 svg{fill:none;stroke:currentColor;stroke-width:2} 이므로
         모든 도형은 fill / stroke 를 직접 선언한다. 내부 헬퍼는 IIFE 안에 가둔다. */
 
@@ -25,33 +25,17 @@ const ART_ = (function () {
     ` style="font-variant-numeric:tabular-nums">${s}</text>`;
 
   /* ================= 그립 아이콘 ================= */
-  // 옆에서 본 손가락 하나 + 엣지. 오른쪽이 벽, 엣지 윗면(y=18)에 손끝이 걸린다.
-  // 점: 끝(tip) → DIP → PIP → MCP → 손목. 크림프 종류는 마디 각도로 구분한다.
-  //  open: 손가락이 거의 펴진 채 엣지 모서리에 걸침 (PIP 거의 180°)
-  //  half: PIP 약 90°, DIP 살짝 굽힘
-  //  full: PIP 90° 미만으로 바짝 접고 DIP 는 뒤로 젖힘(손끝 평평), 엄지로 검지를 덮음
-  const POSE = {
-    open: '45,16.5 37.5,18.5 33,29 29.5,41 28,52',
-    half: '45,16.5 39,10.5 28.5,11 27.5,25 26.5,52',
-    full: '46,16.5 37.5,15.5 31,6.5 29,21 27.5,52',
-  };
-  const THUMB = '19,38 27,26 36.5,14.5';
+  // 원 안에 손가락 수(큰 숫자) + 크림프 종류(작은 영문). 글자색은 현재 단계 색(--accent)을 따른다
+  const GRIP_LABEL = { open: 'OPEN', half: 'HALF', full: 'FULL' };
 
   function hand(fingers, side, grip) {
-    const pose = POSE[grip] ? grip : 'half';
-    const line = (pts, color, w) => `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${w}"` +
-      ' stroke-linecap="round" stroke-linejoin="round"/>';
-    const joints = POSE[pose].split(' ').slice(1, 4).map(p => {
-      const [x, y] = p.split(',');
-      return `<circle cx="${x}" cy="${y}" r="1.3" fill="${T.ink}" fill-opacity=".35" stroke="none"/>`;
-    }).join('');
-    // 손가락 수·양손 여부는 옆 글자(4봉, 양손)가 알려주므로 아이콘은 크림프 모양에만 집중
-    return '<svg class="art" viewBox="15 2 49 50">' +
-      `<rect x="56" y="0" width="8" height="52" rx="1.5" fill="${T.wd3}" stroke="none"/>` +
-      `<rect x="36" y="18" width="22" height="7" rx="2" fill="${T.wd1}" stroke="none"/>` +
-      line(POSE[pose], T.text, 5.2) + joints +
-      (pose === 'full' ? line(THUMB, T.muted, 4.6) : '') +
-      '</svg>';
+    const n = (typeof fingers === 'string' && fingers.length) || 4;
+    return '<svg class="art grip-icon" viewBox="0 0 64 64">' +
+      '<circle cx="32" cy="32" r="30" fill="#1F2229" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>' +
+      txt(32, 28, n, 27, T.text, 800) +
+      `<text x="32" y="45" dy=".34em" text-anchor="middle" stroke="none" font-size="9" font-weight="800"` +
+      ` letter-spacing="1.2" font-family="system-ui,-apple-system,sans-serif"` +
+      ` style="fill:var(--accent,#FF5B4A)">${GRIP_LABEL[grip] || ''}</text></svg>`;
   }
 
   /* ================= 보드 ================= */
