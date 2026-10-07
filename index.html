@@ -64,6 +64,9 @@
         </div>
         <button data-d="1" aria-label="늘리기">+</button>
       </div>
+      <div class="quick" id="hang-quick">
+        <button data-q="10">10s</button><button data-q="15">15s</button><button data-q="20">20s</button><button data-q="30">30s</button>
+      </div>
     </section>
     </div>
 
@@ -221,6 +224,10 @@
           <button class="seg" data-cd="5">5초</button>
         </div>
       </div>
+      <div class="row">
+        <div><div class="row-title">사용법</div><div class="row-sub">처음 안내 다시 보기</div></div>
+        <button class="link-btn" id="btn-intro-again">보기</button>
+      </div>
     </section>
   </main>
 
@@ -270,7 +277,7 @@
     </header>
 
     <div class="phase-pill" id="phase">GET READY</div>
-    <p class="screen-tip" id="screen-tip">화면을 켜둔 채로 두세요 · 꺼지면 소리가 멈춰요</p>
+    <p class="screen-tip" id="screen-tip">화면은 켜둔 채로 · 화면 두 번 탭 = 일시정지</p>
 
     <div class="timer">
       <svg class="ring" viewBox="0 0 200 200">
@@ -339,6 +346,7 @@
         <div class="board-wrap" id="board-art"></div>
         <p class="hold-sel" id="hold-sel"></p>
       </section>
+      <input id="memo" class="name-input memo-input" placeholder="메모 (선택) · 예: 왼손 약지 살짝 아팠음" maxlength="80" autocomplete="off">
     </div>
     <button id="btn-done" class="btn-primary btn-light">확인</button>
   </main>
@@ -372,6 +380,7 @@
         <b id="lm-title"></b>
         <p id="lm-meta"></p>
         <div id="lm-body"></div>
+        <input id="lm-memo" class="name-input memo-input" placeholder="메모 추가" maxlength="80" autocomplete="off">
         <button id="lm-save" class="btn-pause">저장</button>
         <button id="lm-del" class="btn-ghost danger-ghost">이 기록 삭제</button>
         <button id="lm-close" class="text-btn">닫기</button>
@@ -379,8 +388,38 @@
     </div>
   </main>
 
+  <!-- 처음 사용법 안내 (한 번만, 설정에서 다시 보기) -->
+  <div class="modal intro" id="intro" hidden>
+    <div class="modal-card intro-card">
+      <div class="intro-slide" data-slide="0">
+        <div class="intro-num">1</div>
+        <b>홈 화면에 추가하면 앱처럼 써요</b>
+        <p id="intro-install">아이폰: Safari 아래 공유 버튼 → <b>홈 화면에 추가</b><br>안드로이드: Chrome ⋮ → <b>앱 설치</b><br>인터넷이 없어도 동작해요.</p>
+      </div>
+      <div class="intro-slide" data-slide="1" hidden>
+        <div class="intro-num">2</div>
+        <b>운동 중엔 화면을 켜두세요</b>
+        <p>화면이 꺼지면 소리가 멈춰서 자동으로 일시정지돼요.<br>분필 묻은 손으로는 <b>화면 아무 데나 두 번 탭</b>하면 일시정지 / 계속.<br>남은 시간은 <span class="g">초록</span> → <span class="y">노랑</span> → <span class="r">빨강</span>으로 알려줘요.</p>
+      </div>
+      <div class="intro-slide" data-slide="2" hidden>
+        <div class="intro-num">3</div>
+        <b>세 가지 운동 + 기록</b>
+        <p><b>Fingerboard</b> 1분 단위 매달리기 루틴 (직접 만들기·공유 가능)<br><b>Circuit</b> 운동 골라서 체크 + 세트 사이 휴식 타이머<br><b>ILV</b> I-L-V-V-L-I 자동 진행<br>운동 기록은 오른쪽 위 기록 버튼에서 그래프로 볼 수 있어요.</p>
+      </div>
+      <div class="intro-dots" id="intro-dots"><i></i><i></i><i></i></div>
+      <button id="btn-intro-next" class="btn-pause">다음</button>
+      <button id="btn-intro-skip" class="text-btn">건너뛰기</button>
+    </div>
+  </div>
+
   <div id="light-glow"></div>
   <script src="art.js"></script>
-  <script src="app.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/setup.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/circuit.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

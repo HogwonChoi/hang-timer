@@ -426,6 +426,39 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 .chart-empty { font-size: 13px; color: var(--muted); }
 
 /* ---------- 기타 ---------- */
+#run { touch-action: manipulation; } /* 두 번 탭 일시정지가 확대로 먹히지 않게 */
+
+.quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 14px; }
+.quick button {
+  height: 36px; border-radius: 10px; background: var(--surface-2);
+  font-size: 14px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.quick button.active { background: color-mix(in srgb, var(--hang) 18%, transparent); color: var(--text); }
+
+.memo-input { margin-top: 10px; font-size: 15px; font-weight: 500; padding: 13px 16px; }
+.modal-card .memo-input { margin: 0; text-align: left; }
+.log-memo { color: var(--text) !important; opacity: .8; font-style: italic; }
+
+.wt-chart { display: block; width: 100%; height: auto; overflow: visible; }
+.wt-chart text { stroke: none; }
+.wt-chart .wt-v { fill: var(--text); font-size: 11px; font-weight: 700; }
+.wt-chart .wt-d { fill: var(--muted); font-size: 10px; }
+
+.intro-card { gap: 12px; padding-top: 28px; }
+.intro-slide { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 200px; }
+.intro-num {
+  width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 24px; font-weight: 800; color: var(--hang);
+  background: color-mix(in srgb, var(--hang) 14%, transparent);
+}
+.intro-slide p { line-height: 1.7; }
+.intro-slide p b { font-size: inherit; color: var(--text); }
+.intro .g { color: #2FD3A0; font-weight: 700; }
+.intro .y { color: #FFD23F; font-weight: 700; }
+.intro .r { color: #FF4545; font-weight: 700; }
+.intro-dots { display: flex; justify-content: center; gap: 6px; margin: 2px 0 4px; }
+.intro-dots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.2); }
+.intro-dots i.on { background: var(--text); width: 18px; border-radius: 4px; }
 .log-item .chip + .chip { margin-left: 6px; }
 
 .weight-row {

@@ -1,7 +1,8 @@
 // 온라인이면 항상 최신 파일을 받고, 오프라인이면 캐시로 동작
-const VERSION = 'hang-timer-v5';
+const VERSION = 'hangry-v6';
 const ASSETS = [
-  './', './index.html', './style.css', './art.js', './app.js', './manifest.webmanifest',
+  './', './index.html', './style.css', './art.js', './manifest.webmanifest',
+  './js/core.js', './js/setup.js', './js/editor.js', './js/timer.js', './js/circuit.js', './js/history.js', './js/main.js',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
 ];
 
