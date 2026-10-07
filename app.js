@@ -1,33 +1,33 @@
 'use strict';
 
 /* ================= 운동 정의 ================= */
-// 손가락 조합 (i=검지 m=중지 r=약지 p=새끼). 클라이밍에서 흔히 쓰는 이름 기준
+// 손가락 조합 (i=검지 m=중지 r=약지 p=새끼). 이름은 영어권 클라이머 표준 용어, 손가락은 한국어로 보조 표기
 // pick: 편집 화면 버튼 글자, who: 쓰는 손가락
 const FINGERS = {
-  imrp: { label: '4핑거', pick: '4핑거', who: '검지~새끼' },
-  imr: { label: '프론트 3', pick: '프론트 3', who: '검지·중지·약지' },
-  mrp: { label: '백 3', pick: '백 3', who: '중지·약지·새끼' },
-  im: { label: '프론트 2', pick: '프론트 2', who: '검지·중지' },
-  mr: { label: '미들 2', pick: '미들 2', who: '중지·약지' },
-  rp: { label: '백 2', pick: '백 2', who: '약지·새끼' },
-  i: { label: '모노 검지', pick: '검지', who: '검지' },
-  m: { label: '모노 중지', pick: '중지', who: '중지' },
-  r: { label: '모노 약지', pick: '약지', who: '약지' },
-  p: { label: '모노 새끼', pick: '새끼', who: '새끼' },
+  imrp: { label: '4 Finger', pick: '4 Finger', who: '검지~새끼' },
+  imr: { label: 'Front 3', pick: 'Front 3', who: '검지·중지·약지' },
+  mrp: { label: 'Back 3', pick: 'Back 3', who: '중지·약지·새끼' },
+  im: { label: 'Front 2', pick: 'Front 2', who: '검지·중지' },
+  mr: { label: 'Middle 2', pick: 'Middle 2', who: '중지·약지' },
+  rp: { label: 'Back 2', pick: 'Back 2', who: '약지·새끼' },
+  i: { label: 'Mono Index', pick: 'Index', who: '검지' },
+  m: { label: 'Mono Middle', pick: 'Middle', who: '중지' },
+  r: { label: 'Mono Ring', pick: 'Ring', who: '약지' },
+  p: { label: 'Mono Pinky', pick: 'Pinky', who: '새끼' },
 };
 const FINGER_GROUPS = [
-  ['4 핑거', ['imrp']],
-  ['3 핑거', ['imr', 'mrp']],
-  ['2 핑거', ['im', 'mr', 'rp']],
-  ['모노 (1 핑거)', ['i', 'm', 'r', 'p']],
+  ['4 Finger', ['imrp']],
+  ['3 Finger', ['imr', 'mrp']],
+  ['2 Finger', ['im', 'mr', 'rp']],
+  ['Mono', ['i', 'm', 'r', 'p']],
 ];
 const GRIPS = {
   half: { ko: '하프크림프', en: 'Half Crimp' },
-  open: { ko: '오픈크림프', en: 'Open Crimp' },
+  open: { ko: '오픈크림프', en: 'Open Hand' },
   full: { ko: '풀크림프', en: 'Full Crimp' },
 };
-const exName = it => `${FINGERS[it.fingers].label} ${GRIPS[it.grip].ko}`;
-const exSub = it => `${GRIPS[it.grip].en} · ${FINGERS[it.fingers].who}`;
+const exName = it => `${FINGERS[it.fingers].label} ${GRIPS[it.grip].en}`;
+const exSub = it => `${GRIPS[it.grip].ko} · ${FINGERS[it.fingers].who}`;
 
 // 완료 후 선택하는 홀드 보드 (홀드 목록·그림은 art.js의 BOARD_HOLDS / boardSVG)
 const BOARDS = { bm1000: 'BM 1000', bm2000: 'BM 2000', crimp: '크림프' };
