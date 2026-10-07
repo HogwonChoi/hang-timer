@@ -88,10 +88,6 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-top: 2px;
 
 /* ---------- 그립 그림 ---------- */
 svg.art { stroke: none; display: block; width: 100%; height: 100%; }
-.art .h-on { fill: var(--text); }
-.art .h-off { fill: rgba(255, 255, 255, .28); }
-.art .h-thumb { stroke: var(--text); stroke-width: 7; stroke-linecap: round; }
-.art .h-board { fill: #B48B63; }
 
 /* ---------- 메인 화면 ---------- */
 .top-actions { display: flex; gap: 8px; }
@@ -111,6 +107,7 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
 .list-toggle svg { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; }
 .list-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .list-row .link-btn { padding: 4px 2px; }
+.list-row .link-btn + .link-btn { margin-left: 4px; }
 
 .routine-chips {
   display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
@@ -293,17 +290,10 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 .done-sub { color: var(--muted); margin-top: 6px; }
 
 .hold-pick { width: 100%; margin-top: 26px; text-align: left; }
-.hold-pick .segmented { grid-template-columns: repeat(3, 1fr); }
-.hold-pick .seg { font-size: 14px; }
-.mm-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 10px; }
-.mm {
-  height: 46px; border-radius: 12px;
-  background: var(--surface); border: 1px solid var(--line);
-  font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums;
-}
-.mm small { font-size: 10px; font-weight: 600; color: var(--muted); margin-left: 1px; }
-.mm.active { background: var(--rest); border-color: var(--rest); color: var(--bg); }
-.mm.active small { color: var(--bg); }
+.board-wrap { margin-top: 12px; }
+.board-wrap svg { display: block; width: 100%; height: auto; }
+.hold-sel { margin-top: 10px; text-align: center; font-size: 14px; color: var(--muted); }
+.hold-sel b { color: var(--rest); }
 
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; margin-top: 28px; }
 .stats > div {
@@ -328,3 +318,22 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 .badge-ok { color: var(--rest); background: color-mix(in srgb, var(--rest) 14%, transparent); }
 .badge-stop { color: var(--prep); background: color-mix(in srgb, var(--prep) 14%, transparent); }
 .empty { text-align: center; color: var(--muted); margin-top: 60px; font-size: 15px; }
+
+/* ---------- 그래프 ---------- */
+.chart .label { margin-bottom: 14px; }
+.vbars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; height: 130px; }
+.vbar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; }
+.vbar i { display: block; width: 70%; max-width: 22px; min-height: 3px; border-radius: 5px 5px 2px 2px; background: #3A3F4A; }
+.vbar.now i { background: var(--hang); }
+.vbar-n { font-size: 12px; font-weight: 700; margin-bottom: 4px; min-height: 14px; }
+.vbar-l { font-size: 10px; color: var(--muted); margin-top: 6px; white-space: nowrap; }
+.hbar { display: grid; grid-template-columns: 112px 1fr 38px; align-items: center; gap: 10px; padding: 5px 0; }
+.hbar-k { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hbar-track { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.hbar-track i { display: block; height: 100%; border-radius: 5px; background: var(--rest); }
+.hbar b { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.chart-empty { font-size: 13px; color: var(--muted); }
+
+/* ---------- 기타 ---------- */
+.screen-tip { align-self: center; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.import-btn { align-self: flex-start; margin: 8px 4px 0; font-size: 13px; }

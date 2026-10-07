@@ -40,6 +40,7 @@
           <span id="list-summary">6개 동작 · 6세트</span>
           <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
         </button>
+        <button class="link-btn" id="btn-share">공유</button>
         <button class="link-btn" id="btn-edit">편집</button>
       </div>
       <ol id="routine-list" class="ex-list" hidden></ol>
@@ -130,6 +131,7 @@
     </header>
 
     <input id="ed-name" class="name-input" placeholder="루틴 이름 (예: 크림프 집중)" maxlength="20" autocomplete="off">
+    <button class="link-btn import-btn" id="btn-import">공유받은 링크 붙여넣기</button>
     <p class="ed-summary" id="ed-summary"></p>
     <ol id="ed-list" class="ed-list"></ol>
 
@@ -164,6 +166,7 @@
     </header>
 
     <div class="phase-pill" id="phase">GET READY</div>
+    <p class="screen-tip" id="screen-tip">화면을 켜둔 채로 두세요 · 꺼지면 소리가 멈춰요</p>
 
     <div class="timer">
       <svg class="ring" viewBox="0 0 200 200">
@@ -208,8 +211,9 @@
       </div>
       <section class="hold-pick">
         <div class="label">오늘 사용한 홀드</div>
-        <div class="segmented" id="board-seg"></div>
-        <div class="mm-grid" id="mm-grid"></div>
+        <div class="segmented seg3" id="board-seg"></div>
+        <div class="board-wrap" id="board-art"></div>
+        <p class="hold-sel" id="hold-sel"></p>
       </section>
     </div>
     <button id="btn-done" class="btn-primary btn-light">확인</button>
@@ -229,9 +233,11 @@
       <div><b id="h-month">0</b><span>이번 달</span></div>
       <div><b id="h-all">0</b><span>전체</span></div>
     </div>
+    <div id="charts"></div>
     <div id="log-list"></div>
   </main>
 
+  <script src="art.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -18,12 +18,8 @@ const GRIPS = {
 const exName = it => `${FINGERS[it.fingers].label} ${GRIPS[it.grip].ko}`;
 const exSub = it => `${GRIPS[it.grip].en} · ${FINGERS[it.fingers].en}`;
 
-// 완료 후 선택하는 홀드 (보드별 깊이 mm)
-const BOARDS = {
-  bm1000: { name: 'BM 1000', mm: [15, 20, 25, 45, 50, 53] },
-  bm2000: { name: 'BM 2000', mm: [15, 20, 22, 26, 30, 33, 35, 40, 45, 50, 53] },
-  crimp: { name: '크림프', mm: [6, 8, 10] },
-};
+// 완료 후 선택하는 홀드 보드 (홀드 목록·그림은 art.js의 BOARD_HOLDS / boardSVG)
+const BOARDS = { bm1000: 'BM 1000', bm2000: 'BM 2000', crimp: '크림프' };
 
 // 기본 루틴. one: 한손 세트(왼손 → 손 바꾸기 → 오른손)
 const ex = (fingers, grip, reps = 1, one = false) => ({ fingers, grip, reps, one });
@@ -49,10 +45,11 @@ const SETTINGS_KEY = 'hang-settings';
 const LOG_KEY = 'hang-log';
 const ROUTINES_KEY = 'hang-routines';
 const settings = Object.assign(
-  { routine: 'r1', hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false, board: 'bm2000', mm: null },
+  { routine: 'r1', hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false, board: 'bm2000', hold: null },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'),
 );
 delete settings.voice; // 이전 버전 설정값 정리
+delete settings.mm;
 if (typeof settings.routine === 'number') settings.routine = `r${settings.routine}`;
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 
@@ -177,29 +174,7 @@ function show(name) {
   window.scrollTo(0, 0);
 }
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
-
-/* ================= 그립 그림 ================= */
-// 앞에서 본 손: 보드 엣지에 걸린 손가락(흰색), 안 쓰는 손가락은 접혀서 흐리게
-const FINGER_X = [['p', 8], ['r', 17.5], ['m', 27], ['i', 36.5]];
-function handSVG(fingers, side) {
-  const hands = side === 'both' ? ['L', 'R'] : [side === 'R' ? 'R' : 'L'];
-  const CW = 50, GAP = 10;
-  const W = hands.length * CW + (hands.length - 1) * GAP;
-  let body = '';
-  hands.forEach((h, k) => {
-    const ox = k * (CW + GAP);
-    const X = x => (h === 'L' ? ox + x : ox + CW - x);
-    for (const [f, cx] of FINGER_X) {
-      const on = fingers.includes(f);
-      const top = on ? 10 : 27;
-      body += `<rect class="${on ? 'h-on' : 'h-off'}" x="${X(cx) - 3}" y="${top}" width="6" height="${44 - top}" rx="3"/>`;
-    }
-    body += `<rect class="h-on" x="${h === 'L' ? ox + 4.5 : ox + CW - 40}" y="36" width="35.5" height="26" rx="11"/>`;
-    body += `<line class="h-thumb" x1="${X(36)}" y1="56" x2="${X(45)}" y2="45"/>`;
-  });
-  body += `<rect class="h-board" x="-4" y="5" width="${W + 8}" height="13" rx="4"/>`;
-  return `<svg class="art" viewBox="-5 0 ${W + 10} 64">${body}</svg>`;
-}
+// 손 그림 handSVG(fingers, side, grip), 보드 그림 boardSVG 는 art.js
 
 /* ================= 메인 화면 ================= */
 const exRowHTML = it => {
@@ -207,7 +182,7 @@ const exRowHTML = it => {
     `<span class="chip">${it.one ? '한손 · 좌/우' : '양손'}</span>`,
     it.reps > 1 ? `<span class="chip chip-accent">×${it.reps}</span>` : '',
   ].join('');
-  return `<div class="ex-art">${handSVG(it.fingers, it.one ? 'L' : 'both')}</div>
+  return `<div class="ex-art">${handSVG(it.fingers, it.one ? 'L' : 'both', it.grip)}</div>
     <div class="ex-name">${exName(it)}</div><div class="ex-tags">${tags}</div>`;
 };
 
@@ -224,6 +199,7 @@ function renderSetup() {
   $('routine-list').hidden = !open;
   $('btn-list').setAttribute('aria-expanded', open);
   $('btn-edit').textContent = rt.builtin ? '복사해서 편집' : '편집';
+  $('btn-share').hidden = !!rt.builtin;
   $('v-hang').textContent = settings.hang;
   $('v-sw').textContent = settings.sw;
   $('v-prep').textContent = settings.prep;
@@ -294,7 +270,7 @@ function renderEditor() {
   const last = draft.items.length - 1;
   $('ed-list').innerHTML = draft.items.map((x, i) => `
     <li class="ed-item" data-i="${i}">
-      <div class="ex-art">${handSVG(x.fingers, x.one ? 'L' : 'both')}</div>
+      <div class="ex-art">${handSVG(x.fingers, x.one ? 'L' : 'both', x.grip)}</div>
       <div class="ed-main">
         <div class="ed-name">${exName(x)}</div>
         <div class="ed-ctl">
@@ -313,7 +289,7 @@ function renderEditor() {
 
   $('add-fingers').innerHTML = Object.entries(FINGERS).map(([k, f]) => `
     <button class="add-opt ${k === addSel.fingers ? 'active' : ''}" data-fingers="${k}">
-      <span class="add-art">${handSVG(k, 'L')}</span>${f.label}</button>`).join('');
+      <span class="add-art">${handSVG(k, 'L', addSel.grip)}</span>${f.label}</button>`).join('');
   document.querySelectorAll('[data-addgrip]').forEach(b => b.classList.toggle('active', b.dataset.addgrip === addSel.grip));
   document.querySelectorAll('[data-addone]').forEach(b => b.classList.toggle('active', (b.dataset.addone === '1') === addSel.one));
   $('btn-ed-add').textContent = `+ ${exName(addSel)} ${addSel.one ? '(한손)' : '(양손)'} 추가`;
@@ -374,6 +350,69 @@ $('btn-ed-delete').addEventListener('click', () => {
   saveSettings(); renderSetup(); show('setup');
 });
 
+/* ================= 루틴 공유 (링크 #r=코드) ================= */
+const toB64url = s => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64url = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)));
+
+function shareLink(r) {
+  const code = toB64url(JSON.stringify({ t: r.title, i: r.items.map(x => [x.fingers, x.grip, x.reps, x.one ? 1 : 0]) }));
+  return `${location.origin}${location.pathname}#r=${code}`;
+}
+
+// 링크 전체 또는 코드만 받아서 { title, items } 로. 형식이 틀리면 null
+function parseShared(text) {
+  const code = (text.match(/r=([\w-]+)/) || [null, text.trim()])[1];
+  let data;
+  try { data = JSON.parse(fromB64url(code)); } catch { return null; }
+  if (!data || typeof data.t !== 'string' || !Array.isArray(data.i) || !data.i.length || data.i.length > 50) return null;
+  const items = [];
+  for (const [f, g, reps, one] of data.i) {
+    if (!FINGERS[f] || !GRIPS[g] || !Number.isInteger(reps) || reps < 1 || reps > 10) return null;
+    items.push(ex(f, g, reps, !!one));
+  }
+  return { title: data.t.slice(0, 20) || '공유받은 루틴', items };
+}
+
+$('btn-share').addEventListener('click', () => {
+  const r = getRoutine(settings.routine);
+  const url = shareLink(r);
+  const copy = () => navigator.clipboard.writeText(url)
+    .then(() => alert('링크를 복사했어요. 친구에게 보내주세요.'))
+    .catch(() => prompt('이 링크를 복사해서 보내주세요', url));
+  if (navigator.share) {
+    navigator.share({ title: `Hang Timer · ${r.title}`, text: `'${r.title}' 루틴 (${r.items.length}개 동작)`, url })
+      .catch(err => { if (err.name !== 'AbortError') copy(); }); // 사용자가 공유창을 닫은 경우는 무시
+  } else {
+    copy();
+  }
+});
+
+// 편집 화면에서 붙여넣기 → 편집 중인 루틴에 채워 넣고 저장은 사용자가
+$('btn-import').addEventListener('click', () => {
+  const text = prompt('공유받은 링크를 붙여넣어 주세요');
+  if (!text) return;
+  const data = parseShared(text);
+  if (!data) { alert('올바른 루틴 링크가 아니에요'); return; }
+  draft.title = data.title;
+  draft.items = data.items;
+  $('ed-name').value = data.title;
+  renderEditor();
+});
+
+// 공유 링크로 앱을 열었을 때
+function importFromHash() {
+  if (!location.hash.startsWith('#r=')) return;
+  const data = parseShared(location.hash);
+  history.replaceState(null, '', location.pathname);
+  if (!data) { alert('루틴 링크가 올바르지 않아요'); return; }
+  if (!confirm(`'${data.title}' 루틴(${data.items.length}개 동작)을 내 루틴에 추가할까요?`)) return;
+  const r = { id: `c${Date.now()}`, ...data };
+  customs.push(r);
+  saveCustoms();
+  settings.routine = r.id;
+  saveSettings(); renderSetup();
+}
+
 /* ================= 타이머 ================= */
 const RING = 2 * Math.PI * 90;
 let run = null; // { steps, totalSets, i, end, remain, paused, lastSec, startedAt, setsDone, cfg, title }
@@ -396,6 +435,7 @@ function enterStep(i, at) {
   run.end = at + st.dur * 1000;
   run.lastSec = st.dur;
   document.body.dataset.phase = st.type;
+  $('screen-tip').hidden = st.type !== 'prep';
   renderStep();
 }
 
@@ -406,7 +446,7 @@ function renderStep() {
   const focus = st.type === 'hang' ? st : steps.slice(i + 1).find(s => s.type === 'hang') || st;
   $('phase').textContent = PHASE_LABEL[st.type];
   $('run-count').textContent = `세트 ${Math.max(focus.set, 1)} / ${totalSets}`;
-  $('grip-art').innerHTML = handSVG(focus.fingers, focus.side);
+  $('grip-art').innerHTML = handSVG(focus.fingers, focus.side, focus.grip);
   $('grip-tag').textContent = st.type === 'hang' ? '지금' : '다음';
   $('grip-hands').textContent = SIDE_LABEL[focus.side] + (focus.reps > 1 ? ` · ${focus.rep}/${focus.reps}` : '');
   $('grip-name').textContent = exName(focus);
@@ -524,32 +564,35 @@ function finish(completed) {
   show('done');
 }
 
-/* ================= 완료 후 홀드 선택 ================= */
+/* ================= 완료 후 홀드 선택 (보드 그림 터치) ================= */
 let doneTs = null;
+const findHold = (board, id) => (BOARD_HOLDS[board] || []).find(h => h.id === id);
 function renderHold() {
-  $('board-seg').innerHTML = Object.entries(BOARDS).map(([k, b]) =>
-    `<button class="seg ${k === settings.board ? 'active' : ''}" data-board="${k}">${b.name}</button>`).join('');
-  $('mm-grid').innerHTML = BOARDS[settings.board].mm.map(mm =>
-    `<button class="mm ${mm === settings.mm ? 'active' : ''}" data-mm="${mm}">${mm}<small>mm</small></button>`).join('');
+  $('board-seg').innerHTML = Object.entries(BOARDS).map(([k, name]) =>
+    `<button class="seg ${k === settings.board ? 'active' : ''}" data-board="${k}">${name}</button>`).join('');
+  $('board-art').innerHTML = boardSVG(settings.board, settings.hold);
+  const h = findHold(settings.board, settings.hold);
+  $('hold-sel').innerHTML = h ? `선택: <b>${BOARDS[settings.board]} · ${h.mm}mm</b>` : '사용한 홀드를 눌러주세요 (선택 안 해도 돼요)';
 }
 $('board-seg').addEventListener('click', e => {
   const b = e.target.closest('[data-board]');
   if (!b) return;
   settings.board = b.dataset.board;
-  if (!BOARDS[settings.board].mm.includes(settings.mm)) settings.mm = null;
+  if (!findHold(settings.board, settings.hold)) settings.hold = null;
   saveSettings(); renderHold();
 });
-$('mm-grid').addEventListener('click', e => {
-  const b = e.target.closest('[data-mm]');
-  if (!b) return;
-  settings.mm = settings.mm === +b.dataset.mm ? null : +b.dataset.mm; // 다시 누르면 선택 해제
+$('board-art').addEventListener('click', e => {
+  const g = e.target.closest('[data-hold]');
+  if (!g) return;
+  settings.hold = settings.hold === g.dataset.hold ? null : g.dataset.hold; // 다시 누르면 선택 해제
   saveSettings(); renderHold();
 });
 function saveHold() {
-  if (!doneTs || !settings.mm) return;
+  const h = findHold(settings.board, settings.hold);
+  if (!doneTs || !h) return;
   const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
   const entry = log.find(l => l.ts === doneTs);
-  if (entry) { entry.board = settings.board; entry.mm = settings.mm; }
+  if (entry) { entry.board = settings.board; entry.mm = h.mm; entry.hold = h.id; }
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
 }
 
@@ -577,6 +620,7 @@ function renderHistory() {
   $('h-week').textContent = done.filter(l => l.ts >= weekStart).length;
   $('h-month').textContent = done.filter(l => l.ts >= monthStart).length;
   $('h-all').textContent = done.length;
+  $('charts').innerHTML = done.length ? chartsHTML(done, weekStart) : '';
 
   if (!log.length) { $('log-list').innerHTML = '<p class="empty">아직 기록이 없어요</p>'; return; }
   let html = '', lastDay = '';
@@ -585,13 +629,48 @@ function renderHistory() {
     const day = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
     if (day !== lastDay) { html += `<div class="log-day">${day}</div>`; lastDay = day; }
     const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
-    const hold = l.mm ? `<span class="chip">${BOARDS[l.board].name} · ${l.mm}mm</span>` : '';
-    const title = l.title ?? (l.routine === 2 ? '마무리' : '웜업'); // 이전 버전 기록은 루틴 번호만 있음
-    html += `<div class="log-item"><div><b>${escapeHTML(title)}</b>
+    const hold = l.mm ? `<span class="chip">${BOARDS[l.board]} · ${l.mm}mm</span>` : '';
+    html += `<div class="log-item"><div><b>${escapeHTML(logTitle(l))}</b>
       <small>${time} · 매달리기 ${l.hang}초 · ${l.sets}/${l.total}세트 · ${fmt(l.sec)}</small>${hold}</div>
       <span class="chip ${l.completed ? 'badge-ok' : 'badge-stop'}">${l.completed ? '완료' : '중단'}</span></div>`;
   }
   $('log-list').innerHTML = html;
+}
+
+const logTitle = l => l.title ?? (l.routine === 2 ? '마무리' : '웜업'); // 이전 버전 기록은 루틴 번호만 있음
+
+// 완료한 운동만 집계: 최근 8주 주별 횟수, 루틴별 횟수, 홀드별 횟수
+function chartsHTML(done, weekStart) {
+  const WEEK = 7 * 86400000;
+  const weeks = Array.from({ length: 8 }, (_, k) => {
+    const start = weekStart.getTime() - (7 - k) * WEEK;
+    const n = done.filter(l => l.ts >= start && l.ts < start + WEEK).length;
+    const d = new Date(start);
+    return { label: `${d.getMonth() + 1}/${d.getDate()}`, n, now: k === 7 };
+  });
+  const maxW = Math.max(1, ...weeks.map(w => w.n));
+  const weekBars = weeks.map(w => `
+    <div class="vbar ${w.now ? 'now' : ''}"><span class="vbar-n">${w.n || ''}</span>
+      <i style="height:${(w.n / maxW) * 100}%"></i><span class="vbar-l">${w.now ? '이번 주' : w.label}</span></div>`).join('');
+
+  const tally = keyOf => {
+    const m = new Map();
+    for (const l of done) { const k = keyOf(l); if (k) m.set(k, (m.get(k) || 0) + 1); }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const hbars = rows => {
+    const max = Math.max(1, ...rows.map(r => r[1]));
+    return rows.map(([k, n]) => `<div class="hbar"><span class="hbar-k">${escapeHTML(k)}</span>
+      <span class="hbar-track"><i style="width:${(n / max) * 100}%"></i></span><b>${n}회</b></div>`).join('');
+  };
+  const byRoutine = tally(logTitle);
+  const byHold = tally(l => (l.mm ? `${BOARDS[l.board]} ${l.mm}mm` : null));
+
+  return `
+    <section class="card chart"><div class="label">주별 운동 횟수</div><div class="vbars">${weekBars}</div></section>
+    <section class="card chart"><div class="label">루틴별 횟수</div>${hbars(byRoutine)}</section>
+    <section class="card chart"><div class="label">홀드별 횟수</div>
+      ${byHold.length ? hbars(byHold) : '<p class="chart-empty">운동을 마치고 홀드를 고르면 여기에 쌓여요</p>'}</section>`;
 }
 
 $('btn-history').addEventListener('click', () => { renderHistory(); show('history'); });
@@ -602,4 +681,5 @@ $('btn-clear').addEventListener('click', () => {
 
 /* ================= 시작 ================= */
 renderSetup();
+importFromHash();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
