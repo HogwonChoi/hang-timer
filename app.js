@@ -48,15 +48,21 @@ const BUILTIN = [
 ];
 
 const SET_LEN = 60;
-const PHASE_LABEL = { prep: 'GET READY', hang: 'HANG', rest: 'REST', switch: 'SWITCH HANDS' };
+const PHASE_LABEL = { prep: 'GET READY', hang: 'HANG', rest: 'REST', switch: 'SWITCH HANDS', pull: 'PULL-UP', hold: 'HOLD' };
 const SIDE_LABEL = { both: '양손', L: '왼손', R: '오른손' };
 
 /* ================= 저장 ================= */
 const SETTINGS_KEY = 'hang-settings';
 const LOG_KEY = 'hang-log';
 const ROUTINES_KEY = 'hang-routines';
+const CX_KEY = 'hang-circuit-ex';
 const settings = Object.assign(
-  { routine: 'r1', hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false, board: 'bm2000', hold: null, weight: 0 },
+  {
+    tab: 'fb', routine: 'r1', hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false,
+    board: 'bm2000', hold: null, weight: 0,
+    cSel: [], cSets: 3, cRest: 6,                       // 서킷: 고른 운동, 세트 수, 세트 사이 휴식(분)
+    ilvHold: 10, ilvPull: 2, ilvSets: 3, ilvRest: 120,  // ILV: 자세 유지(초), 턱걸이(초), 세트 수, 휴식(초)
+  },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'),
 );
 delete settings.voice; // 이전 버전 설정값 정리
@@ -69,7 +75,13 @@ const saveCustoms = () => localStorage.setItem(ROUTINES_KEY, JSON.stringify(cust
 const allRoutines = () => [...BUILTIN, ...customs];
 const getRoutine = id => allRoutines().find(r => r.id === id) || BUILTIN[0];
 
+const CX_DEFAULT = ['턱걸이', '링 코어', '푸시업 맨땅', '푸시업 인클라인', '푸시업 디클라인',
+  '밴드 사레레 천천히', '밴드 사레레 빠르게', '언더 크림프 친업', '코어 발 멀리 찍기', '머슬업'];
+let cxList = JSON.parse(localStorage.getItem(CX_KEY) || 'null') || CX_DEFAULT;
+const saveCx = () => localStorage.setItem(CX_KEY, JSON.stringify(cxList));
+
 /* ================= 시퀀스 생성 ================= */
+// countsSet: 이 단계가 끝나면 세트 1개 완료로 센다
 function buildSteps(items, { hang, sw, prep }) {
   const sets = [];
   for (const item of items) {
@@ -81,15 +93,31 @@ function buildSteps(items, { hang, sw, prep }) {
     if (s.one) {
       steps.push({ ...base, type: 'hang', dur: hang, side: 'L' });
       steps.push({ ...base, type: 'switch', dur: sw, side: 'L' });
-      steps.push({ ...base, type: 'hang', dur: hang, side: 'R' });
+      steps.push({ ...base, type: 'hang', dur: hang, side: 'R', countsSet: true });
     } else {
-      steps.push({ ...base, type: 'hang', dur: hang, side: 'both' });
+      steps.push({ ...base, type: 'hang', dur: hang, side: 'both', countsSet: true });
     }
     if (i < sets.length - 1) steps.push({ ...base, type: 'rest', dur: SET_LEN - hang });
   });
   return { steps, totalSets: sets.length };
 }
 const totalSec = steps => steps.reduce((a, s) => a + s.dur, 0);
+
+// ILV 1세트: 자세를 바꾸기 전마다 턱걸이 1개 → I L V V L I
+const ILV_ORDER = ['I', 'L', 'V', 'V', 'L', 'I'];
+const POSE_NAME = { I: 'I 자세', L: 'L 자세', V: 'V 자세' };
+const POSE_SAY = { I: 'I hang', L: 'L sit', V: 'V sit' };
+function buildIlvSteps({ ilvHold, ilvPull, ilvSets, ilvRest, prep }) {
+  const steps = [{ type: 'prep', dur: prep, set: 1, pose: 'I', idx: 0 }];
+  for (let s = 1; s <= ilvSets; s++) {
+    ILV_ORDER.forEach((pose, idx) => {
+      steps.push({ type: 'pull', dur: ilvPull, set: s, pose, idx });
+      steps.push({ type: 'hold', dur: ilvHold, set: s, pose, idx, countsSet: idx === ILV_ORDER.length - 1 });
+    });
+    if (s < ilvSets) steps.push({ type: 'rest', dur: ilvRest, set: s + 1, pose: 'I', idx: 0 });
+  }
+  return { steps, totalSets: ilvSets };
+}
 
 /* ================= 소리 ================= */
 let ctx = null;
@@ -179,7 +207,7 @@ function releaseScreen() { if (wakeLock) wakeLock.release(); wakeLock = null; }
 
 /* ================= DOM ================= */
 const $ = id => document.getElementById(id);
-const screens = ['setup', 'settings', 'editor', 'run', 'done', 'history'];
+const screens = ['setup', 'settings', 'editor', 'cx-editor', 'run', 'circuit', 'done', 'history'];
 function show(name) {
   screens.forEach(s => { $(s).hidden = s !== name; });
   window.scrollTo(0, 0);
@@ -197,29 +225,59 @@ const exRowHTML = it => {
     <div class="ex-name">${exName(it)}</div><div class="ex-tags">${tags}</div>`;
 };
 
+const TAB_NAME = { fb: 'Fingerboard', circuit: 'Circuit', ilv: 'ILV Pull-up' };
+
 function renderSetup() {
+  const tab = settings.tab;
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  ['fb', 'circuit', 'ilv'].forEach(t => { $(`panel-${t}`).hidden = t !== tab; });
+  $('eyebrow').textContent = TAB_NAME[tab];
+  document.querySelectorAll('.stepper').forEach(st => { st.querySelector('output').textContent = settings[st.dataset.key]; });
+  document.querySelectorAll('[data-sound]').forEach(b => b.classList.toggle('active', b.dataset.sound === settings.sound));
+  document.querySelectorAll('[data-cd]').forEach(b => b.classList.toggle('active', +b.dataset.cd === settings.cd));
+
   const rt = getRoutine(settings.routine);
   settings.routine = rt.id;
   $('routine-chips').innerHTML = allRoutines().map(r =>
     `<button class="rchip ${r.id === rt.id ? 'active' : ''}" data-rid="${r.id}">${escapeHTML(r.title)}</button>`).join('')
     + '<button class="rchip rchip-add" id="btn-new">+ 새 루틴</button>';
-  document.querySelectorAll('[data-sound]').forEach(b => b.classList.toggle('active', b.dataset.sound === settings.sound));
-  document.querySelectorAll('[data-cd]').forEach(b => b.classList.toggle('active', +b.dataset.cd === settings.cd));
   $('routine-list').innerHTML = rt.items.map(i => `<li>${exRowHTML(i)}</li>`).join('');
   const open = settings.listOpen;
   $('routine-list').hidden = !open;
   $('btn-list').setAttribute('aria-expanded', open);
   $('btn-edit').textContent = rt.builtin ? '복사해서 편집' : '편집';
   $('btn-share').hidden = !!rt.builtin;
-  $('v-hang').textContent = settings.hang;
-  $('v-sw').textContent = settings.sw;
-  $('v-prep').textContent = settings.prep;
   $('rest-hint').textContent = `휴식 ${SET_LEN - settings.hang}초`;
-  const { steps, totalSets } = buildSteps(rt.items, settings);
-  $('list-summary').textContent = `${rt.items.length}개 동작 · ${totalSets}세트`;
-  $('total').textContent = fmt(totalSec(steps));
-  $('total-sets').textContent = totalSets;
+  const fb = buildSteps(rt.items, settings);
+  $('list-summary').textContent = `${rt.items.length}개 동작 · ${fb.totalSets}세트`;
+
+  // 서킷: 목록에서 지워진 운동은 선택에서도 뺀다
+  settings.cSel = settings.cSel.filter(n => cxList.includes(n));
+  $('cx-pick').innerHTML = cxList.map(n =>
+    `<button class="cx-chip ${settings.cSel.includes(n) ? 'active' : ''}" data-cx="${escapeHTML(n)}">${escapeHTML(n)}</button>`).join('')
+    || '<p class="chart-empty">목록 편집에서 운동을 추가하세요</p>';
+
+  $('ilv-seq').innerHTML = ILV_ORDER.map(p => `<span class="pose-badge">${p}</span>`).join('<i>›</i>');
+
+  let line;
+  if (tab === 'fb') line = `총 <b>${fmt(totalSec(fb.steps))}</b> · ${fb.totalSets}세트`;
+  else if (tab === 'circuit') line = `운동 <b>${settings.cSel.length}개</b> · ${settings.cSets}세트 · 휴식 ${settings.cRest}분`;
+  else line = `총 <b>${fmt(totalSec(buildIlvSteps(settings).steps))}</b> · ${settings.ilvSets}세트`;
+  $('total-line').innerHTML = line;
+  $('btn-start').disabled = tab === 'circuit' && !settings.cSel.length;
 }
+
+document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => {
+  settings.tab = b.dataset.tab; saveSettings(); renderSetup();
+}));
+$('cx-pick').addEventListener('click', e => {
+  const b = e.target.closest('[data-cx]');
+  if (!b) return;
+  const n = b.dataset.cx;
+  // 선택 순서 = 진행 순서는 목록 순서를 따른다
+  settings.cSel = settings.cSel.includes(n) ? settings.cSel.filter(x => x !== n) : cxList.filter(x => x === n || settings.cSel.includes(x));
+  saveSettings(); renderSetup();
+});
 
 const escapeHTML = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
@@ -427,17 +485,26 @@ function importFromHash() {
   saveSettings(); renderSetup();
 }
 
-/* ================= 타이머 ================= */
+/* ================= 타이머 (핑거보드 · ILV 공용) ================= */
 const RING = 2 * Math.PI * 90;
-let run = null; // { steps, totalSets, i, end, remain, paused, lastSec, startedAt, setsDone, cfg, title }
+let run = null; // { kind, steps, totalSets, i, end, remain, paused, lastSec, startedAt, setsDone, cfg, title }
+const ACTIVE = t => t === 'hang' || t === 'hold'; // 매달려 버티는 단계
 
 function start() {
-  const rt = getRoutine(settings.routine);
   unlockAudio();
+  if (settings.tab === 'circuit') return startCircuit();
   lockScreen();
-  const { steps, totalSets } = buildSteps(rt.items, settings);
-  run = { steps, totalSets, i: -1, paused: false, startedAt: Date.now(), setsDone: 0, cfg: { ...settings }, title: rt.title };
-  $('run-routine').textContent = rt.title;
+  let built, title;
+  if (settings.tab === 'ilv') {
+    built = buildIlvSteps(settings);
+    title = 'ILV Pull-up';
+  } else {
+    const rt = getRoutine(settings.routine);
+    built = buildSteps(rt.items, settings);
+    title = rt.title;
+  }
+  run = { kind: settings.tab, ...built, i: -1, paused: false, startedAt: Date.now(), setsDone: 0, cfg: { ...settings }, title };
+  $('run-routine').textContent = title;
   show('run');
   warmUpSound();
   enterStep(0, performance.now());
@@ -468,6 +535,7 @@ function enterStep(i, at) {
 }
 
 function renderStep() {
+  if (run.kind === 'ilv') return renderIlvStep();
   const { steps, i, totalSets } = run;
   const st = steps[i];
   // 휴식/준비 중에는 다음 매달리기 그립을 미리 보여줌
@@ -493,6 +561,47 @@ function renderStep() {
   $('progress-bar').style.width = `${(run.setsDone / totalSets) * 100}%`;
 }
 
+// ILV 화면: 원 안에 I/L/V, 아래에 1세트 순서 중 현재 위치 표시
+const poseSVG = p => '<svg class="art grip-icon" viewBox="0 0 64 64">' +
+  '<circle cx="32" cy="32" r="30" fill="#1F2229" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>' +
+  `<text x="32" y="33" dy=".34em" text-anchor="middle" stroke="none" font-size="34" font-weight="800"` +
+  ` font-family="system-ui,-apple-system,sans-serif" style="fill:var(--accent,#FF5B4A)">${p}</text></svg>`;
+
+function renderIlvStep() {
+  const { steps, i, totalSets } = run;
+  const st = steps[i];
+  const nx = steps[i + 1];
+  $('phase').textContent = PHASE_LABEL[st.type];
+  $('run-count').textContent = `세트 ${st.set} / ${totalSets}`;
+  $('grip-art').innerHTML = poseSVG(st.pose);
+  $('grip-tag').textContent = st.type === 'hold' ? '지금' : '다음';
+  $('grip-hands').textContent = `${st.idx + 1} / ${ILV_ORDER.length}`;
+  $('grip-name').textContent = st.type === 'hold' ? `${POSE_NAME[st.pose]} ${st.dur}초`
+    : st.type === 'pull' ? `턱걸이 1개 → ${POSE_NAME[st.pose]}`
+    : `턱걸이 1개 → ${POSE_NAME[st.pose]}부터`;
+  $('grip-sub').innerHTML = ILV_ORDER.map((p, k) =>
+    `<span class="seq ${k === st.idx ? 'cur' : k < st.idx || (st.type === 'hold' && k === st.idx) ? 'past' : ''}">${p}</span>`).join(' ');
+  $('next').textContent = st.type === 'hold'
+    ? (!nx ? '마지막 자세!' : nx.type === 'rest' ? `세트 끝 · 휴식 ${nx.dur}초` : `다음 · 턱걸이 1개 → ${POSE_NAME[nx.pose]}`)
+    : st.type === 'pull' ? `올라가서 ${POSE_NAME[st.pose]} ${run.cfg.ilvHold}초 버티기`
+    : st.type === 'rest' ? '휴식 끝나면 턱걸이 1개부터' : '시작하면 턱걸이 1개부터';
+  $('progress-bar').style.width = `${(run.setsDone / totalSets) * 100}%`;
+}
+
+// 턱걸이 단계 시작 신호: 짧은 비프 (음성 모드는 "Pull up, L sit")
+function pullCue(pose) {
+  if (settings.sound === 'voice' && 'speechSynthesis' in window) {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(`Pull up, ${POSE_SAY[pose]}`);
+    u.lang = 'en-US';
+    if (voice) u.voice = voice;
+    u.rate = 1.2;
+    speechSynthesis.speak(u);
+  } else {
+    tone(587, 0, 0.28, 0.3, 'square'); // 카운트다운(880Hz)보다 낮은 음으로 구분
+  }
+}
+
 function tick() {
   if (!run || run.paused) return;
   const now = performance.now();
@@ -505,15 +614,15 @@ function tick() {
   run.lastTick = now;
   while (now >= run.end) {
     const st = run.steps[run.i];
-    if (st.type === 'hang') {
-      if (st.side !== 'L') run.setsDone++;
-    }
+    if (st.countsSet) run.setsDone++;
     const nextI = run.i + 1;
     if (nextI >= run.steps.length) return finish(true);
     const late = now - run.end > 1000;
     if (!late) {
-      if (st.type === 'hang') sound.stop();
-      if (run.steps[nextI].type === 'hang') sound.go();
+      const nx = run.steps[nextI];
+      if (ACTIVE(st.type) && nx.type !== 'pull') sound.stop();   // 버티기 끝 "뚜우~"
+      if (ACTIVE(nx.type)) sound.go();                           // 버티기 시작 "띠이~"
+      else if (nx.type === 'pull') pullCue(nx.pose);              // 턱걸이 "뚜"
     }
     enterStep(nextI, run.end);
   }
@@ -521,15 +630,16 @@ function tick() {
   const sec = Math.ceil(remain);
   const st = run.steps[run.i];
   const countEl = $('count');
+  const cdOn = st.type !== 'pull' && sec <= settings.cd; // 짧은 턱걸이 단계는 카운트다운 소리 없음
   if (sec !== run.lastSec) {
     run.lastSec = sec;
-    if (sec <= settings.cd && sec >= 1) {
+    if (cdOn && sec >= 1) {
       countdown(sec);
       countEl.classList.remove('beat'); void countEl.offsetWidth; countEl.classList.add('beat');
     }
   }
   countEl.textContent = sec;
-  countEl.classList.toggle('last', sec <= settings.cd);
+  countEl.classList.toggle('last', cdOn);
   $('ring').style.strokeDashoffset = RING * (1 - remain / st.dur);
 }
 
@@ -564,11 +674,11 @@ function togglePause() {
 function skip() {
   if (!run) return;
   const st = run.steps[run.i];
-  if (st.type === 'hang' && st.side !== 'L') run.setsDone++;
+  if (st.countsSet) run.setsDone++;
   const nextI = run.i + 1;
   if (nextI >= run.steps.length) return finish(true);
   if (run.paused) togglePause();
-  if (run.steps[nextI].type === 'hang') sound.go();
+  if (ACTIVE(run.steps[nextI].type)) sound.go();
   enterStep(nextI, performance.now());
 }
 
@@ -580,21 +690,41 @@ function finish(completed) {
   document.body.classList.remove('paused');
   $('btn-pause').textContent = '일시정지';
   const elapsed = Math.round((Date.now() - r.startedAt) / 1000);
-  doneTs = null;
-  if (r.setsDone > 0) {
-    doneTs = Date.now();
-    const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
-    log.unshift({ ts: doneTs, title: r.title, hang: r.cfg.hang, sets: r.setsDone, total: r.totalSets, sec: elapsed, completed });
-    localStorage.setItem(LOG_KEY, JSON.stringify(log));
-  }
-  if (!completed) { document.body.dataset.phase = 'idle'; show('setup'); return; }
+  const entry = { ts: Date.now(), type: r.kind, title: r.title, sets: r.setsDone, total: r.totalSets, sec: elapsed, completed };
+  if (r.kind === 'ilv') Object.assign(entry, { holdSec: r.cfg.ilvHold, pullSec: r.cfg.ilvPull });
+  else entry.hang = r.cfg.hang;
+  logSession(entry);
+  if (!completed) return backToMain();
   sound.done();
   vibrate([200, 100, 200]);
+  showDone(r.kind, r.title, elapsed, r.setsDone,
+    r.kind === 'ilv' ? [`${r.cfg.ilvHold}s`, '자세 유지'] : [`${r.cfg.hang}s`, '매달리기']);
+}
+
+// 1세트라도 했으면 기록. 완료 화면에서 중량·홀드를 덧붙이려고 ts 를 기억해 둔다
+function logSession(entry) {
+  doneTs = null;
+  if (entry.sets <= 0) return;
+  doneTs = entry.ts;
+  const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  log.unshift(entry);
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
+}
+
+function backToMain() { document.body.dataset.phase = 'idle'; show('setup'); }
+
+// 완료 화면: 핑거보드는 중량+홀드, ILV는 중량만, 서킷은 둘 다 없음
+let doneKind = 'fb';
+function showDone(kind, title, elapsed, sets, [third, thirdLabel]) {
+  doneKind = kind;
   document.body.dataset.phase = 'done';
-  $('done-sub').textContent = r.title;
+  $('done-sub').textContent = title;
   $('d-time').textContent = fmt(elapsed);
-  $('d-sets').textContent = r.setsDone;
-  $('d-hang').textContent = `${r.cfg.hang}s`;
+  $('d-sets').textContent = sets;
+  $('d-hang').textContent = third;
+  $('d-hang-l').textContent = thirdLabel;
+  $('weight-row').hidden = kind === 'circuit';
+  $('hold-pick').hidden = kind !== 'fb';
   renderHold();
   renderWeight();
   show('done');
@@ -629,8 +759,8 @@ function saveHold() {
   const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
   const entry = log.find(l => l.ts === doneTs);
   if (!entry) return;
-  if (h) { entry.board = settings.board; entry.mm = h.mm; entry.hold = h.id; }
-  entry.weight = settings.weight;
+  if (h && doneKind === 'fb') { entry.board = settings.board; entry.mm = h.mm; entry.hold = h.id; }
+  if (doneKind !== 'circuit') entry.weight = settings.weight;
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
 }
 
@@ -649,7 +779,127 @@ $('btn-stop').addEventListener('click', () => {
   if (!run.paused) togglePause();
   if (confirm('운동을 종료할까요?')) finish(false);
 });
-$('btn-done').addEventListener('click', () => { saveHold(); document.body.dataset.phase = 'idle'; show('setup'); });
+$('btn-done').addEventListener('click', () => { saveHold(); backToMain(); });
+
+/* ================= 서킷 (체크리스트 + 세트 사이 휴식 타이머) ================= */
+let cx = null; // { items, sets, set, checked:Set, resting, restEnd, lastSec, iv, startedAt }
+
+function startCircuit() {
+  lockScreen();
+  cx = { items: [...settings.cSel], sets: settings.cSets, set: 1, checked: new Set(), resting: false, startedAt: Date.now() };
+  show('circuit');
+  renderCircuit();
+}
+
+function renderCircuit() {
+  document.body.dataset.phase = cx.resting ? 'rest' : 'hang';
+  $('cx-count').textContent = `세트 ${cx.set} / ${cx.sets}`;
+  $('cx-phase').textContent = cx.resting ? 'REST' : 'WORK';
+  $('cx-check').hidden = cx.resting;
+  $('cx-rest').hidden = !cx.resting;
+  $('cx-check').innerHTML = cx.items.map((n, k) => `
+    <li><button class="cx-row ${cx.checked.has(k) ? 'on' : ''}" data-k="${k}">
+      <span class="cx-box"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>${escapeHTML(n)}</button></li>`).join('');
+  const done = cx.set - 1 + (cx.resting ? 1 : cx.checked.size / cx.items.length);
+  $('cx-progress').style.width = `${(done / cx.sets) * 100}%`;
+}
+
+$('cx-check').addEventListener('click', e => {
+  const b = e.target.closest('[data-k]');
+  if (!b || !cx) return;
+  const k = +b.dataset.k;
+  if (cx.checked.has(k)) cx.checked.delete(k); else cx.checked.add(k);
+  if (cx.checked.size === cx.items.length) {
+    if (cx.set >= cx.sets) return finishCircuit(true);
+    vibrate(200);
+    startCxRest();
+  }
+  renderCircuit();
+});
+
+function startCxRest() {
+  cx.resting = true;
+  cx.restEnd = performance.now() + settings.cRest * 60000;
+  cx.lastSec = null;
+  $('cx-rest-next').textContent = `다음 · 세트 ${cx.set + 1} / ${cx.sets}`;
+  clearInterval(cx.iv);
+  cx.iv = setInterval(cxRestTick, 250);
+  cxRestTick();
+}
+
+function cxRestTick() {
+  const remain = (cx.restEnd - performance.now()) / 1000;
+  if (remain <= 0) { sound.go(); return nextCxSet(); }
+  const sec = Math.ceil(remain);
+  $('cx-rest-time').textContent = fmt(sec);
+  if (sec !== cx.lastSec) {
+    if (cx.lastSec !== null && sec <= settings.cd) countdown(sec);
+    cx.lastSec = sec;
+  }
+}
+
+function nextCxSet() {
+  clearInterval(cx.iv);
+  cx.set++;
+  cx.checked.clear();
+  cx.resting = false;
+  renderCircuit();
+}
+
+function finishCircuit(completed) {
+  clearInterval(cx.iv);
+  releaseScreen();
+  const c = cx;
+  cx = null;
+  const sets = completed ? c.sets : c.set - 1 + (c.resting ? 1 : 0);
+  const elapsed = Math.round((Date.now() - c.startedAt) / 1000);
+  logSession({ ts: Date.now(), type: 'circuit', title: 'Circuit', items: c.items, sets, total: c.sets, sec: elapsed, completed });
+  if (!completed) return backToMain();
+  sound.done();
+  vibrate([200, 100, 200]);
+  showDone('circuit', `Circuit · ${c.items.length}개 운동`, elapsed, sets, [`${c.items.length}개`, '운동']);
+}
+
+$('btn-cx-skip').addEventListener('click', () => { if (cx) nextCxSet(); });
+$('btn-cx-stop').addEventListener('click', () => {
+  if (cx && confirm('서킷을 종료할까요? 끝낸 세트까지만 기록돼요')) finishCircuit(false);
+});
+
+/* ---------- 서킷 운동 목록 편집 ---------- */
+function renderCxEditor() {
+  $('cx-list').innerHTML = cxList.map((n, k) => `
+    <li class="ed-item cx-item" data-i="${k}">
+      <div class="ed-main"><div class="ed-name">${escapeHTML(n)}</div></div>
+      <div class="ed-move">
+        <button data-act="up" aria-label="위로" ${k === 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+        <button data-act="down" aria-label="아래로" ${k === cxList.length - 1 ? 'disabled' : ''}><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+      </div>
+      <button class="ed-del" data-act="del" aria-label="삭제"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+    </li>`).join('');
+}
+$('btn-cx-edit').addEventListener('click', () => { renderCxEditor(); show('cx-editor'); });
+$('btn-cx-back').addEventListener('click', () => { renderSetup(); show('setup'); });
+$('btn-cx-add').addEventListener('click', () => {
+  const n = $('cx-new').value.trim();
+  if (!n) return;
+  if (cxList.includes(n)) { alert('이미 있는 운동이에요'); return; }
+  cxList.push(n);
+  saveCx();
+  $('cx-new').value = '';
+  renderCxEditor();
+});
+$('cx-new').addEventListener('keydown', e => { if (e.key === 'Enter') $('btn-cx-add').click(); });
+$('cx-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const i = +b.closest('[data-i]').dataset.i;
+  const act = b.dataset.act;
+  if (act === 'up' && i > 0) [cxList[i - 1], cxList[i]] = [cxList[i], cxList[i - 1]];
+  if (act === 'down' && i < cxList.length - 1) [cxList[i + 1], cxList[i]] = [cxList[i], cxList[i + 1]];
+  if (act === 'del') cxList.splice(i, 1);
+  saveCx();
+  renderCxEditor();
+});
 
 // 화면이 꺼지거나 앱을 벗어나면 소리가 멈추므로 자동 일시정지 → 돌아오면 이어갈지 물어본다
 function interrupted() {
@@ -679,8 +929,32 @@ $('btn-restart-step').addEventListener('click', () => {
 });
 
 /* ================= 기록 ================= */
+// type 없는 예전 기록은 핑거보드
+const logType = l => l.type || 'fb';
+const logTitle = l => l.title ?? (l.routine === 2 ? '마무리' : '웜업'); // 이전 버전 기록은 루틴 번호만 있음
+const TYPE_LABEL = { fb: 'Fingerboard', circuit: 'Circuit', ilv: 'ILV' };
+let histFilter = 'all';
+
+function logLine(l, time) {
+  const base = `${time} · ${l.sets}/${l.total}세트 · ${fmt(l.sec)}`;
+  const chips = [];
+  if (l.mm) chips.push(`${BOARDS[l.board]} · ${l.mm}mm`);
+  if (l.weight) chips.push(weightLabel(l.weight));
+  const chipHTML = chips.map(c => `<span class="chip">${c}</span>`).join('');
+  switch (logType(l)) {
+    case 'circuit':
+      return `<small>${base}</small><small class="log-items">${(l.items || []).map(escapeHTML).join(' · ')}</small>`;
+    case 'ilv':
+      return `<small>${base} · 유지 ${l.holdSec}초 · 턱걸이 ${l.pullSec}초</small>${chipHTML}`;
+    default:
+      return `<small>${base} · 매달리기 ${l.hang}초</small>${chipHTML}`;
+  }
+}
+
 function renderHistory() {
-  const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  document.querySelectorAll('[data-hf]').forEach(b => b.classList.toggle('active', b.dataset.hf === histFilter));
+  const all = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  const log = histFilter === 'all' ? all : all.filter(l => logType(l) === histFilter);
   const now = new Date();
   const weekStart = new Date(now); weekStart.setHours(0, 0, 0, 0);
   weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7)); // 월요일 시작
@@ -698,18 +972,14 @@ function renderHistory() {
     const day = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
     if (day !== lastDay) { html += `<div class="log-day">${day}</div>`; lastDay = day; }
     const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
-    const hold = (l.mm ? `<span class="chip">${BOARDS[l.board]} · ${l.mm}mm</span>` : '')
-      + (l.weight ? `<span class="chip">${weightLabel(l.weight)}</span>` : '');
-    html += `<div class="log-item"><div><b>${escapeHTML(logTitle(l))}</b>
-      <small>${time} · 매달리기 ${l.hang}초 · ${l.sets}/${l.total}세트 · ${fmt(l.sec)}</small>${hold}</div>
+    const kind = histFilter === 'all' ? `<span class="log-kind">${TYPE_LABEL[logType(l)]}</span>` : '';
+    html += `<div class="log-item"><div class="log-main">${kind}<b>${escapeHTML(logTitle(l))}</b>${logLine(l, time)}</div>
       <span class="chip ${l.completed ? 'badge-ok' : 'badge-stop'}">${l.completed ? '완료' : '중단'}</span></div>`;
   }
   $('log-list').innerHTML = html;
 }
 
-const logTitle = l => l.title ?? (l.routine === 2 ? '마무리' : '웜업'); // 이전 버전 기록은 루틴 번호만 있음
-
-// 완료한 운동만 집계: 최근 8주 주별 횟수, 루틴별 횟수, 홀드별 횟수
+// 완료한 운동만 집계: 최근 8주 주별 횟수 + 종류별 세부 그래프
 function chartsHTML(done, weekStart) {
   const WEEK = 7 * 86400000;
   const weeks = Array.from({ length: 8 }, (_, k) => {
@@ -723,9 +993,9 @@ function chartsHTML(done, weekStart) {
     <div class="vbar ${w.now ? 'now' : ''}"><span class="vbar-n">${w.n || ''}</span>
       <i style="height:${(w.n / maxW) * 100}%"></i><span class="vbar-l">${w.now ? '이번 주' : w.label}</span></div>`).join('');
 
-  const tally = keyOf => {
+  const tally = keysOf => {
     const m = new Map();
-    for (const l of done) { const k = keyOf(l); if (k) m.set(k, (m.get(k) || 0) + 1); }
+    for (const l of done) for (const k of [].concat(keysOf(l) || [])) m.set(k, (m.get(k) || 0) + 1);
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   };
   const hbars = rows => {
@@ -733,16 +1003,24 @@ function chartsHTML(done, weekStart) {
     return rows.map(([k, n]) => `<div class="hbar"><span class="hbar-k">${escapeHTML(k)}</span>
       <span class="hbar-track"><i style="width:${(n / max) * 100}%"></i></span><b>${n}회</b></div>`).join('');
   };
-  const byRoutine = tally(logTitle);
-  const byHold = tally(l => (l.mm ? `${BOARDS[l.board]} ${l.mm}mm` : null));
+  const card = (label, rows, empty) => `<section class="card chart"><div class="label">${label}</div>
+    ${rows.length ? hbars(rows) : `<p class="chart-empty">${empty}</p>`}</section>`;
 
-  return `
-    <section class="card chart"><div class="label">주별 운동 횟수</div><div class="vbars">${weekBars}</div></section>
-    <section class="card chart"><div class="label">루틴별 횟수</div>${hbars(byRoutine)}</section>
-    <section class="card chart"><div class="label">홀드별 횟수</div>
-      ${byHold.length ? hbars(byHold) : '<p class="chart-empty">운동을 마치고 홀드를 고르면 여기에 쌓여요</p>'}</section>`;
+  let detail;
+  if (histFilter === 'all') detail = card('종류별 횟수', tally(l => TYPE_LABEL[logType(l)]), '');
+  else if (histFilter === 'fb') {
+    detail = card('루틴별 횟수', tally(logTitle), '')
+      + card('홀드별 횟수', tally(l => (l.mm ? `${BOARDS[l.board]} ${l.mm}mm` : null)), '운동을 마치고 홀드를 고르면 여기에 쌓여요');
+  } else if (histFilter === 'circuit') detail = card('운동별 횟수', tally(l => l.items), '');
+  else detail = card('중량별 횟수', tally(l => weightLabel(l.weight || 0)), '');
+
+  return `<section class="card chart"><div class="label">주별 운동 횟수</div><div class="vbars">${weekBars}</div></section>${detail}`;
 }
 
+$('hist-filter').addEventListener('click', e => {
+  const b = e.target.closest('[data-hf]');
+  if (b) { histFilter = b.dataset.hf; renderHistory(); }
+});
 $('btn-history').addEventListener('click', () => { renderHistory(); show('history'); });
 $('btn-back').addEventListener('click', () => show('setup'));
 $('btn-clear').addEventListener('click', () => {

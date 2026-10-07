@@ -41,6 +41,8 @@ body {
 body[data-phase="idle"]   { --accent: var(--hang); }
 body[data-phase="prep"]   { --accent: var(--prep); }
 body[data-phase="hang"]   { --accent: var(--hang); }
+body[data-phase="hold"]   { --accent: var(--hang); }
+body[data-phase="pull"]   { --accent: var(--prep); }
 body[data-phase="rest"]   { --accent: var(--rest); }
 body[data-phase="switch"] { --accent: var(--switch); }
 body[data-phase="done"]   { --accent: var(--rest); }
@@ -201,7 +203,7 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
 }
 .stepper button:active { background: #2C3039; }
 .stepper output { min-width: 40px; text-align: right; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.stepper .unit { font-size: 15px; color: var(--muted); margin-right: 6px; width: 10px; }
+.stepper .unit { font-size: 15px; color: var(--muted); margin-right: 6px; min-width: 10px; white-space: nowrap; }
 
 .seg-sm { flex: none; width: 156px; padding: 3px; border-radius: 12px; gap: 3px; }
 .seg-sm .seg { height: 36px; border-radius: 9px; font-size: 14px; }
@@ -223,7 +225,62 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
   transition: transform .1s;
 }
 .btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { opacity: .35; box-shadow: none; }
 .btn-light { background: var(--text); color: var(--bg); box-shadow: none; }
+
+/* ---------- 탭 ---------- */
+.tabs { margin-top: 14px; }
+.tabs .seg { font-size: 14px; }
+.seg4 { grid-template-columns: repeat(4, 1fr); }
+.label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.label-row .label { margin: 0; }
+
+/* ---------- 서킷 ---------- */
+.cx-pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.cx-chip {
+  height: 38px; padding: 0 14px; border-radius: 12px;
+  background: var(--surface-2); color: var(--muted); font-size: 14px; font-weight: 600;
+  border: 1px solid transparent;
+}
+.cx-chip.active { background: color-mix(in srgb, var(--hang) 16%, transparent); color: var(--text); border-color: color-mix(in srgb, var(--hang) 55%, transparent); }
+.cx-add { display: flex; gap: 8px; align-items: stretch; margin-top: 16px; }
+.cx-add .name-input { margin: 0; flex: 1; font-size: 16px; }
+.cx-add .btn-add { width: 76px; margin: 0; height: auto; }
+.cx-item { padding: 8px 8px 8px 16px; }
+.cx-item .ed-move { flex-direction: row; }
+.cx-item .ed-del { height: 28px; }
+
+.cx-check { list-style: none; margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.cx-row {
+  width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+  min-height: 62px; padding: 0 18px; border-radius: 18px;
+  background: var(--surface); border: 1px solid var(--line); font-size: 18px; font-weight: 700;
+  transition: background .15s, opacity .15s;
+}
+.cx-box {
+  width: 28px; height: 28px; flex: none; border-radius: 9px; display: grid; place-items: center;
+  border: 2px solid rgba(255,255,255,.25); color: transparent;
+}
+.cx-box svg { width: 18px; height: 18px; stroke-width: 3; }
+.cx-row.on { opacity: .55; }
+.cx-row.on .cx-box { background: var(--rest); border-color: var(--rest); color: var(--bg); }
+.cx-rest { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.cx-rest-time { font-size: min(26vw, 120px); font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: var(--accent); }
+.cx-rest p { color: var(--muted); font-size: 15px; }
+.cx-rest .btn-ghost { padding: 0 24px; margin-top: 12px; }
+#circuit .progress { margin-top: auto; }
+#cx-progress { height: 100%; width: 0; background: var(--accent); border-radius: 4px; }
+
+/* ---------- ILV ---------- */
+.ilv-seq { display: flex; align-items: center; justify-content: space-between; }
+.ilv-seq i { color: var(--muted); font-style: normal; }
+.pose-badge {
+  width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface-2); font-size: 18px; font-weight: 800; color: var(--hang);
+}
+.grip-sub .seq { font-weight: 700; letter-spacing: .04em; }
+.grip-sub .seq.past { opacity: .35; }
+.grip-sub .seq.cur { color: var(--accent); }
 
 /* ---------- 운동 화면 ---------- */
 .run-top { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; }
@@ -323,6 +380,11 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 }
 .log-item b { font-size: 15px; }
 .log-item small { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
+.log-main { min-width: 0; }
+.log-kind { display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.log-items { line-height: 1.45; }
+.hist-filter { margin-top: 14px; }
+.hist-filter .seg { font-size: 13px; }
 .log-item small + .chip { margin-top: 8px; }
 .badge-ok { color: var(--rest); background: color-mix(in srgb, var(--rest) 14%, transparent); }
 .badge-stop { color: var(--prep); background: color-mix(in srgb, var(--prep) 14%, transparent); }

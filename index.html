@@ -16,11 +16,11 @@
 </head>
 <body data-phase="idle">
 
-  <!-- 설정 화면 -->
+  <!-- 메인 화면 -->
   <main id="setup" class="screen">
     <header class="topbar">
       <div>
-        <p class="eyebrow">Fingerboard</p>
+        <p class="eyebrow" id="eyebrow">Fingerboard</p>
         <h1>Hang Timer</h1>
       </div>
       <div class="top-actions">
@@ -33,6 +33,14 @@
       </div>
     </header>
 
+    <div class="segmented seg3 tabs" id="tabs">
+      <button class="seg" data-tab="fb">Fingerboard</button>
+      <button class="seg" data-tab="circuit">Circuit</button>
+      <button class="seg" data-tab="ilv">ILV</button>
+    </div>
+
+    <!-- 탭: 핑거보드 -->
+    <div class="panel" id="panel-fb">
     <section class="card">
       <div class="routine-chips" id="routine-chips"></div>
       <div class="list-row">
@@ -57,11 +65,106 @@
         <button data-d="1" aria-label="늘리기">+</button>
       </div>
     </section>
+    </div>
+
+    <!-- 탭: 서킷 -->
+    <div class="panel" id="panel-circuit" hidden>
+      <section class="card">
+        <div class="label-row">
+          <span class="label">오늘 할 운동</span>
+          <button class="link-btn" id="btn-cx-edit">목록 편집</button>
+        </div>
+        <div class="cx-pick" id="cx-pick"></div>
+      </section>
+      <section class="card settings">
+        <div class="row">
+          <div><div class="row-title">세트 수</div><div class="row-sub">한 바퀴 = 1세트</div></div>
+          <div class="stepper" data-key="cSets" data-step="1" data-min="1" data-max="10">
+            <button data-d="-1" aria-label="줄이기">−</button><output>3</output><span class="unit">세트</span><button data-d="1" aria-label="늘리기">+</button>
+          </div>
+        </div>
+        <div class="row">
+          <div><div class="row-title">세트 사이 휴식</div><div class="row-sub">끝나면 비프음</div></div>
+          <div class="stepper" data-key="cRest" data-step="1" data-min="1" data-max="10">
+            <button data-d="-1" aria-label="줄이기">−</button><output>6</output><span class="unit">분</span><button data-d="1" aria-label="늘리기">+</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 탭: ILV -->
+    <div class="panel" id="panel-ilv" hidden>
+      <section class="card">
+        <div class="label">1세트 순서 · 자세 바꾸기 전마다 턱걸이 1개</div>
+        <div class="ilv-seq" id="ilv-seq"></div>
+      </section>
+      <section class="card settings">
+        <div class="row">
+          <div><div class="row-title">자세 유지</div><div class="row-sub">I · L · V 각각</div></div>
+          <div class="stepper" data-key="ilvHold" data-step="1" data-min="3" data-max="30">
+            <button data-d="-1" aria-label="줄이기">−</button><output>10</output><span class="unit">s</span><button data-d="1" aria-label="늘리기">+</button>
+          </div>
+        </div>
+        <div class="row">
+          <div><div class="row-title">턱걸이</div><div class="row-sub">자세 바꾸기 전 1개</div></div>
+          <div class="stepper" data-key="ilvPull" data-step="1" data-min="1" data-max="5">
+            <button data-d="-1" aria-label="줄이기">−</button><output>2</output><span class="unit">s</span><button data-d="1" aria-label="늘리기">+</button>
+          </div>
+        </div>
+        <div class="row">
+          <div><div class="row-title">세트 수</div></div>
+          <div class="stepper" data-key="ilvSets" data-step="1" data-min="1" data-max="10">
+            <button data-d="-1" aria-label="줄이기">−</button><output>3</output><span class="unit">세트</span><button data-d="1" aria-label="늘리기">+</button>
+          </div>
+        </div>
+        <div class="row">
+          <div><div class="row-title">세트 사이 휴식</div></div>
+          <div class="stepper" data-key="ilvRest" data-step="15" data-min="15" data-max="600">
+            <button data-d="-1" aria-label="줄이기">−</button><output>120</output><span class="unit">s</span><button data-d="1" aria-label="늘리기">+</button>
+          </div>
+        </div>
+      </section>
+    </div>
 
     <div class="start-wrap">
-      <div class="total">총 <b id="total">0:00</b> · <span id="total-sets">0</span>세트</div>
+      <div class="total" id="total-line">총 <b id="total">0:00</b> · <span id="total-sets">0</span>세트</div>
       <button id="btn-start" class="btn-primary">시작</button>
     </div>
+  </main>
+
+  <!-- 서킷 운동 목록 편집 -->
+  <main id="cx-editor" class="screen" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="btn-cx-back" aria-label="뒤로">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1 class="h-title">서킷 운동 목록</h1>
+      <span class="spacer"></span>
+    </header>
+    <div class="cx-add">
+      <input id="cx-new" class="name-input" placeholder="운동 이름 (예: 턱걸이 ×10)" maxlength="24" autocomplete="off">
+      <button class="btn-add" id="btn-cx-add">추가</button>
+    </div>
+    <ol class="ed-list" id="cx-list"></ol>
+  </main>
+
+  <!-- 서킷 진행 -->
+  <main id="circuit" class="screen" hidden>
+    <header class="run-top">
+      <button class="icon-btn" id="btn-cx-stop" aria-label="종료">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="run-meta"><span>Circuit</span><b id="cx-count">세트 1 / 3</b></div>
+      <span></span>
+    </header>
+    <div class="phase-pill" id="cx-phase">WORK</div>
+    <ol class="cx-check" id="cx-check"></ol>
+    <div class="cx-rest" id="cx-rest" hidden>
+      <div class="cx-rest-time" id="cx-rest-time">6:00</div>
+      <p id="cx-rest-next">다음 · 세트 2 / 3</p>
+      <button class="btn-ghost" id="btn-cx-skip">휴식 건너뛰기</button>
+    </div>
+    <div class="progress"><div id="cx-progress"></div></div>
   </main>
 
   <!-- 설정 화면 -->
@@ -216,9 +319,9 @@
       <div class="stats">
         <div><b id="d-time">0:00</b><span>총 시간</span></div>
         <div><b id="d-sets">0</b><span>세트</span></div>
-        <div><b id="d-hang">20s</b><span>매달리기</span></div>
+        <div><b id="d-hang">20s</b><span id="d-hang-l">매달리기</span></div>
       </div>
-      <div class="weight-row">
+      <div class="weight-row" id="weight-row">
         <div>
           <div class="row-title">추가 중량</div>
           <div class="row-sub">보조(도르래·밴드)는 마이너스</div>
@@ -229,7 +332,7 @@
           <button id="btn-w-plus" aria-label="늘리기">+</button>
         </div>
       </div>
-      <section class="hold-pick">
+      <section class="hold-pick" id="hold-pick">
         <div class="label">오늘 사용한 홀드</div>
         <div class="segmented seg3" id="board-seg"></div>
         <div class="board-wrap" id="board-art"></div>
@@ -248,6 +351,12 @@
       <h1 class="h-title">기록</h1>
       <button class="text-btn" id="btn-clear">전체 삭제</button>
     </header>
+    <div class="segmented seg4 hist-filter" id="hist-filter">
+      <button class="seg" data-hf="all">전체</button>
+      <button class="seg" data-hf="fb">Finger</button>
+      <button class="seg" data-hf="circuit">Circuit</button>
+      <button class="seg" data-hf="ilv">ILV</button>
+    </div>
     <div class="stats stats-card">
       <div><b id="h-week">0</b><span>이번 주</span></div>
       <div><b id="h-month">0</b><span>이번 달</span></div>

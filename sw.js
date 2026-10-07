@@ -1,5 +1,5 @@
 // 온라인이면 항상 최신 파일을 받고, 오프라인이면 캐시로 동작
-const VERSION = 'hang-timer-v2';
+const VERSION = 'hang-timer-v3';
 const ASSETS = [
   './', './index.html', './style.css', './art.js', './app.js', './manifest.webmanifest',
   './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
