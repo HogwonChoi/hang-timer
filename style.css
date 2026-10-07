@@ -3,6 +3,11 @@
   inherits: true;
   initial-value: #8A8F99;
 }
+@property --light {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #2FD3A0;
+}
 
 :root {
   --bg: #0D0E11;
@@ -36,7 +41,7 @@ body {
     radial-gradient(130% 55% at 50% -12%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 72%),
     var(--bg);
   background-attachment: fixed;
-  transition: --accent .5s ease;
+  transition: --accent .5s ease, --light .9s linear; /* 신호등 색은 약 1초에 걸쳐 자연스럽게 섞이며 바뀜 */
 }
 body[data-phase="idle"]   { --accent: var(--hang); }
 body[data-phase="prep"]   { --accent: var(--prep); }
@@ -54,10 +59,10 @@ body[data-light="yellow"] { --light: #FFD23F; }
 body[data-light="red"]    { --light: #FF4545; }
 #light-glow {
   position: fixed; inset: 0; z-index: 5; pointer-events: none;
-  box-shadow: inset 0 0 0 0 transparent; transition: box-shadow .25s ease;
+  box-shadow: inset 0 0 0 0 transparent; transition: box-shadow .9s linear;
 }
-body[data-light="yellow"] #light-glow { box-shadow: inset 0 0 0 5px #FFD23F, inset 0 0 110px 20px rgba(255, 210, 63, .32); }
-body[data-light="red"] #light-glow { box-shadow: inset 0 0 0 8px #FF4545, inset 0 0 140px 30px rgba(255, 69, 69, .42); }
+body[data-light="yellow"] #light-glow { box-shadow: inset 0 0 0 5px var(--light), inset 0 0 110px 20px color-mix(in srgb, var(--light) 32%, transparent); }
+body[data-light="red"] #light-glow { box-shadow: inset 0 0 0 8px var(--light), inset 0 0 140px 30px color-mix(in srgb, var(--light) 42%, transparent); }
 
 button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
 [hidden] { display: none !important; }
@@ -318,12 +323,13 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
 .ring { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 7; }
 .ring-bg { stroke: rgba(255,255,255,.06); }
-.ring-fg { stroke: var(--light); stroke-linecap: round; stroke-dasharray: 565.49; stroke-dashoffset: 0; transition: stroke .2s; }
+.ring-fg { stroke: var(--light); stroke-linecap: round; stroke-dasharray: 565.49; stroke-dashoffset: 0; }
 .count {
   position: absolute; inset: 0;
   display: grid; place-items: center;
   font-size: 44cqw; font-weight: 700; line-height: 1;
   letter-spacing: -.05em; font-variant-numeric: tabular-nums;
+  transition: color .9s linear;
 }
 .count.last { color: var(--light); }
 body[data-light="yellow"] .count, body[data-light="red"] .count { color: var(--light); }
