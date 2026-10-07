@@ -462,7 +462,7 @@ function sendLink(url, title, text) {
 
 $('btn-share').addEventListener('click', () => {
   const r = getRoutine(settings.routine);
-  sendLink(shareLink(r), `Hang Timer · ${r.title}`, `'${r.title}' 루틴 (${r.items.length}개 동작)`);
+  sendLink(shareLink(r), `Hangry · ${r.title}`, `'${r.title}' 루틴 (${r.items.length}개 동작)`);
 });
 
 /* ---------- 서킷 운동 목록 공유 (링크 #c=코드) ---------- */
@@ -483,7 +483,7 @@ function mergeCx(list) {
 }
 $('btn-cx-share').addEventListener('click', () => {
   const url = `${location.origin}${location.pathname}#c=${toB64url(JSON.stringify(cxList))}`;
-  sendLink(url, 'Hang Timer · 서킷 운동 목록', `서킷 운동 목록 (${cxList.length}개)`);
+  sendLink(url, 'Hangry · 서킷 운동 목록', `서킷 운동 목록 (${cxList.length}개)`);
 });
 $('btn-cx-import').addEventListener('click', () => {
   const text = prompt('공유받은 목록 링크를 붙여넣어 주세요');

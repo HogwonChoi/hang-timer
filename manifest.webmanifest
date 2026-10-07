@@ -1,7 +1,7 @@
 {
-  "name": "Hang Timer",
-  "short_name": "Hang Timer",
-  "description": "클라이밍 핑거보드 인터벌 타이머",
+  "name": "Hangry",
+  "short_name": "Hangry",
+  "description": "Hangry · 클라이밍 핑거보드 · 서킷 · ILV 트레이닝 타이머",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
