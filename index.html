@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#0D0E11">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hang Timer">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+  <title>Hang Timer</title>
+</head>
+<body data-phase="idle">
+
+  <!-- 설정 화면 -->
+  <main id="setup" class="screen">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Fingerboard</p>
+        <h1>Hang Timer</h1>
+      </div>
+      <button class="icon-btn" id="btn-history" aria-label="기록">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </button>
+    </header>
+
+    <section class="card">
+      <div class="label">루틴</div>
+      <div class="segmented">
+        <button class="seg" data-routine="1">1 · 웜업</button>
+        <button class="seg" data-routine="2">2 · 마무리</button>
+      </div>
+      <ol id="routine-list" class="ex-list"></ol>
+    </section>
+
+    <section class="card settings">
+      <div class="row">
+        <div>
+          <div class="row-title">매달리기</div>
+          <div class="row-sub" id="rest-hint">휴식 40초</div>
+        </div>
+        <div class="stepper" data-key="hang" data-step="5" data-min="5" data-max="55">
+          <button data-d="-1" aria-label="줄이기">−</button>
+          <output id="v-hang">20</output><span class="unit">s</span>
+          <button data-d="1" aria-label="늘리기">+</button>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-title">손 바꾸기</div>
+          <div class="row-sub">한손 세트 좌 → 우 사이</div>
+        </div>
+        <div class="stepper" data-key="sw" data-step="5" data-min="5" data-max="30">
+          <button data-d="-1" aria-label="줄이기">−</button>
+          <output id="v-sw">10</output><span class="unit">s</span>
+          <button data-d="1" aria-label="늘리기">+</button>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-title">시작 준비</div>
+          <div class="row-sub">첫 세트 전 카운트다운</div>
+        </div>
+        <div class="stepper" data-key="prep" data-step="5" data-min="5" data-max="30">
+          <button data-d="-1" aria-label="줄이기">−</button>
+          <output id="v-prep">10</output><span class="unit">s</span>
+          <button data-d="1" aria-label="늘리기">+</button>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-title">카운트다운 소리</div>
+          <button class="link-btn" id="btn-preview">▶ 들어보기</button>
+        </div>
+        <div class="segmented seg-sm">
+          <button class="seg" data-sound="beep">대회 비프</button>
+          <button class="seg" data-sound="voice">음성</button>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <div class="row-title">카운트다운 시작</div>
+          <div class="row-sub">끝나기 전 알림</div>
+        </div>
+        <div class="segmented seg-sm">
+          <button class="seg" data-cd="3">3초</button>
+          <button class="seg" data-cd="5">5초</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="start-wrap">
+      <div class="total">총 <b id="total">0:00</b> · <span id="total-sets">0</span>세트</div>
+      <button id="btn-start" class="btn-primary">시작</button>
+    </div>
+  </main>
+
+  <!-- 운동 화면 -->
+  <main id="run" class="screen run" hidden>
+    <header class="run-top">
+      <button class="icon-btn" id="btn-stop" aria-label="종료">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="run-meta">
+        <span id="run-routine">루틴 1 · 웜업</span>
+        <b id="run-count">세트 1 / 8</b>
+      </div>
+      <span></span>
+    </header>
+
+    <div class="phase-pill" id="phase">GET READY</div>
+
+    <div class="timer">
+      <svg class="ring" viewBox="0 0 200 200">
+        <circle class="ring-bg" cx="100" cy="100" r="90"/>
+        <circle class="ring-fg" id="ring" cx="100" cy="100" r="90"/>
+      </svg>
+      <div class="count" id="count">10</div>
+    </div>
+
+    <section class="grip-card">
+      <div class="fingers" id="fingers"></div>
+      <div class="grip-info">
+        <div class="grip-chips">
+          <span class="chip chip-accent" id="grip-tag">지금</span>
+          <span class="chip" id="grip-hands">양손</span>
+        </div>
+        <div class="grip-name" id="grip-name">4봉 하프크림프</div>
+        <div class="grip-sub" id="grip-sub">Half Crimp</div>
+      </div>
+    </section>
+    <div class="next" id="next"></div>
+
+    <div class="controls">
+      <button id="btn-pause" class="btn-pause">일시정지</button>
+      <button id="btn-skip" class="btn-ghost">건너뛰기</button>
+    </div>
+    <div class="progress"><div id="progress-bar"></div></div>
+  </main>
+
+  <!-- 완료 화면 -->
+  <main id="done" class="screen done" hidden>
+    <div class="done-body">
+      <div class="done-check">
+        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </div>
+      <h2>수고했어요</h2>
+      <p class="done-sub" id="done-sub">루틴 1 · 웜업</p>
+      <div class="stats">
+        <div><b id="d-time">0:00</b><span>총 시간</span></div>
+        <div><b id="d-sets">0</b><span>세트</span></div>
+        <div><b id="d-hang">20s</b><span>매달리기</span></div>
+      </div>
+    </div>
+    <button id="btn-done" class="btn-primary btn-light">확인</button>
+  </main>
+
+  <!-- 기록 화면 -->
+  <main id="history" class="screen" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="btn-back" aria-label="뒤로">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1 class="h-title">기록</h1>
+      <button class="text-btn" id="btn-clear">전체 삭제</button>
+    </header>
+    <div class="stats stats-card">
+      <div><b id="h-week">0</b><span>이번 주</span></div>
+      <div><b id="h-month">0</b><span>이번 달</span></div>
+      <div><b id="h-all">0</b><span>전체</span></div>
+    </div>
+    <div id="log-list"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
