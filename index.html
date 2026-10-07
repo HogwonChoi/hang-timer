@@ -34,15 +34,14 @@
     </header>
 
     <section class="card">
-      <div class="segmented">
-        <button class="seg" data-routine="1">1 · 웜업</button>
-        <button class="seg" data-routine="2">2 · 마무리</button>
+      <div class="routine-chips" id="routine-chips"></div>
+      <div class="list-row">
+        <button class="list-toggle" id="btn-list" aria-expanded="false">
+          <span id="list-summary">6개 동작 · 6세트</span>
+          <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <button class="link-btn" id="btn-edit">편집</button>
       </div>
-      <button class="list-toggle" id="btn-list" aria-expanded="false">
-        <span id="list-summary">6개 동작 · 6세트</span>
-        <span class="list-toggle-r"><span id="list-label">펼치기</span>
-          <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
-      </button>
       <ol id="routine-list" class="ex-list" hidden></ol>
     </section>
 
@@ -118,6 +117,37 @@
         </div>
       </div>
     </section>
+  </main>
+
+  <!-- 루틴 편집 화면 -->
+  <main id="editor" class="screen" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="btn-ed-back" aria-label="뒤로">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1 class="h-title" id="ed-heading">새 루틴</h1>
+      <button class="text-btn text-strong" id="btn-ed-save">저장</button>
+    </header>
+
+    <input id="ed-name" class="name-input" placeholder="루틴 이름 (예: 크림프 집중)" maxlength="20" autocomplete="off">
+    <p class="ed-summary" id="ed-summary"></p>
+    <ol id="ed-list" class="ed-list"></ol>
+
+    <section class="card add-card">
+      <div class="label">그립 추가</div>
+      <div class="add-grid" id="add-fingers"></div>
+      <div class="segmented seg3">
+        <button class="seg" data-addgrip="half">하프</button>
+        <button class="seg" data-addgrip="open">오픈</button>
+        <button class="seg" data-addgrip="full">풀</button>
+      </div>
+      <div class="segmented">
+        <button class="seg" data-addone="0">양손</button>
+        <button class="seg" data-addone="1">한손 (좌/우)</button>
+      </div>
+      <button class="btn-add" id="btn-ed-add">+ 추가</button>
+    </section>
+    <button class="danger-btn" id="btn-ed-delete">루틴 삭제</button>
   </main>
 
   <!-- 운동 화면 -->

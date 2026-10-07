@@ -80,7 +80,7 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-top: 2px;
 
 .chip {
   display: inline-flex; align-items: center;
-  font-size: 12px; font-weight: 600; line-height: 1;
+  font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap;
   padding: 5px 9px; border-radius: 999px;
   background: var(--surface-2); color: var(--muted);
 }
@@ -103,13 +103,26 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
 .seg { height: 42px; border-radius: 11px; font-size: 15px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s; }
 .seg.active { background: #2C3039; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.3); }
 
+.list-row { display: flex; align-items: center; gap: 12px; padding-top: 14px; }
 .list-toggle {
-  width: 100%; display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 2px 0; font-size: 15px; font-weight: 600;
+  flex: 1; display: flex; align-items: center; gap: 4px;
+  padding: 2px; font-size: 15px; font-weight: 600; text-align: left;
 }
-.list-toggle-r { display: flex; align-items: center; gap: 2px; font-size: 13px; color: var(--muted); }
-.list-toggle svg { width: 18px; height: 18px; transition: transform .2s; }
+.list-toggle svg { width: 18px; height: 18px; color: var(--muted); transition: transform .2s; }
 .list-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.list-row .link-btn { padding: 4px 2px; }
+
+.routine-chips {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -18px; padding: 0 18px;
+}
+.routine-chips::-webkit-scrollbar { display: none; }
+.rchip {
+  flex: none; height: 40px; padding: 0 16px; border-radius: 12px;
+  background: var(--surface-2); color: var(--muted); font-size: 15px; font-weight: 600; white-space: nowrap;
+}
+.rchip.active { background: var(--text); color: var(--bg); }
+.rchip-add { background: none; border: 1px dashed rgba(255,255,255,.18); }
 
 .ex-list { list-style: none; margin-top: 8px; }
 .ex-list li { display: flex; align-items: center; gap: 14px; padding: 10px 2px; }
@@ -125,6 +138,54 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
 .hang-val output { font-size: 52px; font-weight: 800; letter-spacing: -.03em; min-width: 0; }
 .hang-val .unit { font-size: 20px; margin: 0 0 0 2px; width: auto; }
 .hang-val small { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- 루틴 편집 ---------- */
+.text-strong { color: var(--text); font-weight: 700; font-size: 16px; }
+.name-input {
+  width: 100%; margin-top: 16px; padding: 14px 16px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--line); color: var(--text);
+  font: inherit; font-size: 18px; font-weight: 700; outline: none;
+  -webkit-user-select: text; user-select: text;
+}
+.name-input:focus { border-color: rgba(255,255,255,.25); }
+.ed-summary { font-size: 13px; color: var(--muted); margin: 10px 4px 0; }
+
+.ed-list { list-style: none; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ed-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 10px 12px 12px; border-radius: 18px;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.ed-main { flex: 1; min-width: 0; }
+.ed-name { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ed-ctl { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.ed-hands { height: 30px; padding: 0 10px; }
+.mini-step { display: flex; align-items: center; height: 30px; border-radius: 999px; background: var(--surface-2); }
+.mini-step button { width: 30px; height: 30px; font-size: 18px; color: var(--muted); }
+.mini-step span { min-width: 26px; text-align: center; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ed-move { display: flex; flex-direction: column; gap: 2px; }
+.ed-move button, .ed-del { width: 30px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: var(--muted); }
+.ed-move button:disabled { opacity: .2; }
+.ed-move svg, .ed-del svg { width: 18px; height: 18px; }
+.ed-del { height: 56px; }
+
+.add-card .segmented { margin-top: 10px; }
+.seg3 { grid-template-columns: repeat(3, 1fr); }
+.add-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.add-opt {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 4px 8px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid transparent;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+}
+.add-opt.active { border-color: var(--text); color: var(--text); }
+.add-art { height: 30px; display: flex; }
+.add-art svg { width: auto; }
+.btn-add {
+  width: 100%; height: 50px; margin-top: 12px; border-radius: 14px;
+  background: var(--text); color: var(--bg); font-size: 15px; font-weight: 700;
+}
+.danger-btn { margin: 20px auto 0; padding: 12px; font-size: 14px; color: var(--hang); }
 
 /* ---------- 설정 화면 ---------- */
 
