@@ -61,12 +61,13 @@ const settings = Object.assign(
     tab: 'fb', routine: 'r1', hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false,
     board: 'bm2000', hold: null, weight: 0,
     cSel: [], cSets: 3, cRest: 6,                       // 서킷: 고른 운동, 세트 수, 세트 사이 휴식(분)
-    ilvHold: 10, ilvPull: 2, ilvSets: 3, ilvRest: 120,  // ILV: 자세 유지(초), 턱걸이(초), 세트 수, 휴식(초)
+    ilvHold: 10, ilvPull: 2, ilvSets: 3, ilvRestMin: 2, // ILV: 자세 유지(초), 턱걸이(초), 세트 수, 휴식(분)
   },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'),
 );
 delete settings.voice; // 이전 버전 설정값 정리
 delete settings.mm;
+if (settings.ilvRest) { settings.ilvRestMin = Math.max(1, Math.round(settings.ilvRest / 60)); delete settings.ilvRest; }
 if (typeof settings.routine === 'number') settings.routine = `r${settings.routine}`;
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 
@@ -107,7 +108,8 @@ const totalSec = steps => steps.reduce((a, s) => a + s.dur, 0);
 const ILV_ORDER = ['I', 'L', 'V', 'V', 'L', 'I'];
 const POSE_NAME = { I: 'I 자세', L: 'L 자세', V: 'V 자세' };
 const POSE_SAY = { I: 'I hang', L: 'L sit', V: 'V sit' };
-function buildIlvSteps({ ilvHold, ilvPull, ilvSets, ilvRest, prep }) {
+function buildIlvSteps({ ilvHold, ilvPull, ilvSets, ilvRestMin, prep }) {
+  const ilvRest = ilvRestMin * 60;
   const steps = [{ type: 'prep', dur: prep, set: 1, pose: 'I', idx: 0 }];
   for (let s = 1; s <= ilvSets; s++) {
     ILV_ORDER.forEach((pose, idx) => {
@@ -445,18 +447,52 @@ function parseShared(text) {
   return { title: data.t.slice(0, 20) || '공유받은 루틴', items };
 }
 
-$('btn-share').addEventListener('click', () => {
-  const r = getRoutine(settings.routine);
-  const url = shareLink(r);
+// 공유창(카톡 등) → 안 되면 클립보드 복사 → 그것도 안 되면 직접 복사하도록 보여줌
+function sendLink(url, title, text) {
   const copy = () => navigator.clipboard.writeText(url)
     .then(() => alert('링크를 복사했어요. 친구에게 보내주세요.'))
     .catch(() => prompt('이 링크를 복사해서 보내주세요', url));
   if (navigator.share) {
-    navigator.share({ title: `Hang Timer · ${r.title}`, text: `'${r.title}' 루틴 (${r.items.length}개 동작)`, url })
+    navigator.share({ title, text, url })
       .catch(err => { if (err.name !== 'AbortError') copy(); }); // 사용자가 공유창을 닫은 경우는 무시
   } else {
     copy();
   }
+}
+
+$('btn-share').addEventListener('click', () => {
+  const r = getRoutine(settings.routine);
+  sendLink(shareLink(r), `Hang Timer · ${r.title}`, `'${r.title}' 루틴 (${r.items.length}개 동작)`);
+});
+
+/* ---------- 서킷 운동 목록 공유 (링크 #c=코드) ---------- */
+function parseCxShared(text) {
+  const code = (text.match(/c=([\w-]+)/) || [null, text.trim()])[1];
+  let list;
+  try { list = JSON.parse(fromB64url(code)); } catch { return null; }
+  if (!Array.isArray(list) || !list.length || list.length > 60) return null;
+  if (!list.every(n => typeof n === 'string' && n.trim() && n.length <= 24)) return null;
+  return list.map(n => n.trim());
+}
+// 내 목록에 없는 운동만 뒤에 추가 (기존 목록은 그대로)
+function mergeCx(list) {
+  const added = list.filter(n => !cxList.includes(n));
+  cxList.push(...added);
+  saveCx();
+  return added.length;
+}
+$('btn-cx-share').addEventListener('click', () => {
+  const url = `${location.origin}${location.pathname}#c=${toB64url(JSON.stringify(cxList))}`;
+  sendLink(url, 'Hang Timer · 서킷 운동 목록', `서킷 운동 목록 (${cxList.length}개)`);
+});
+$('btn-cx-import').addEventListener('click', () => {
+  const text = prompt('공유받은 목록 링크를 붙여넣어 주세요');
+  if (!text) return;
+  const list = parseCxShared(text);
+  if (!list) { alert('올바른 목록 링크가 아니에요'); return; }
+  const n = mergeCx(list);
+  alert(n ? `${n}개 운동을 추가했어요` : '이미 모두 있는 운동이에요');
+  renderCxEditor();
 });
 
 // 편집 화면에서 붙여넣기 → 편집 중인 루틴에 채워 넣고 저장은 사용자가
@@ -471,8 +507,19 @@ $('btn-import').addEventListener('click', () => {
   renderEditor();
 });
 
-// 공유 링크로 앱을 열었을 때
+// 공유 링크로 앱을 열었을 때 (#r= 루틴, #c= 서킷 목록)
 function importFromHash() {
+  if (location.hash.startsWith('#c=')) {
+    const list = parseCxShared(location.hash);
+    history.replaceState(null, '', location.pathname);
+    if (!list) { alert('목록 링크가 올바르지 않아요'); return; }
+    if (!confirm(`서킷 운동 ${list.length}개를 내 목록에 추가할까요? (이미 있는 건 건너뛰어요)`)) return;
+    const n = mergeCx(list);
+    settings.tab = 'circuit';
+    saveSettings(); renderSetup();
+    alert(n ? `${n}개 운동을 추가했어요` : '이미 모두 있는 운동이에요');
+    return;
+  }
   if (!location.hash.startsWith('#r=')) return;
   const data = parseShared(location.hash);
   history.replaceState(null, '', location.pathname);
@@ -631,6 +678,7 @@ function tick() {
   const st = run.steps[run.i];
   const countEl = $('count');
   const cdOn = st.type !== 'pull' && sec <= settings.cd; // 짧은 턱걸이 단계는 카운트다운 소리 없음
+  setLight(st.type === 'pull' ? '' : lightFor(sec));
   if (sec !== run.lastSec) {
     run.lastSec = sec;
     if (cdOn && sec >= 1) {
@@ -711,12 +759,17 @@ function logSession(entry) {
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
 }
 
-function backToMain() { document.body.dataset.phase = 'idle'; show('setup'); }
+// 신호등: 평소 초록 → 3초 남으면 노랑 → 1초 남으면 빨강 (링·숫자·화면 테두리 색)
+const lightFor = sec => (sec <= 1 ? 'red' : sec <= 3 ? 'yellow' : 'green');
+function setLight(l) { if (document.body.dataset.light !== l) document.body.dataset.light = l; }
+
+function backToMain() { setLight(''); document.body.dataset.phase = 'idle'; show('setup'); }
 
 // 완료 화면: 핑거보드는 중량+홀드, ILV는 중량만, 서킷은 둘 다 없음
 let doneKind = 'fb';
 function showDone(kind, title, elapsed, sets, [third, thirdLabel]) {
   doneKind = kind;
+  setLight('');
   document.body.dataset.phase = 'done';
   $('done-sub').textContent = title;
   $('d-time').textContent = fmt(elapsed);
@@ -832,6 +885,7 @@ function cxRestTick() {
   if (remain <= 0) { sound.go(); return nextCxSet(); }
   const sec = Math.ceil(remain);
   $('cx-rest-time').textContent = fmt(sec);
+  setLight(lightFor(sec));
   if (sec !== cx.lastSec) {
     if (cx.lastSec !== null && sec <= settings.cd) countdown(sec);
     cx.lastSec = sec;
@@ -840,6 +894,7 @@ function cxRestTick() {
 
 function nextCxSet() {
   clearInterval(cx.iv);
+  setLight('');
   cx.set++;
   cx.checked.clear();
   cx.resting = false;
@@ -848,6 +903,7 @@ function nextCxSet() {
 
 function finishCircuit(completed) {
   clearInterval(cx.iv);
+  setLight('');
   releaseScreen();
   const c = cx;
   cx = null;
@@ -973,11 +1029,70 @@ function renderHistory() {
     if (day !== lastDay) { html += `<div class="log-day">${day}</div>`; lastDay = day; }
     const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
     const kind = histFilter === 'all' ? `<span class="log-kind">${TYPE_LABEL[logType(l)]}</span>` : '';
-    html += `<div class="log-item"><div class="log-main">${kind}<b>${escapeHTML(logTitle(l))}</b>${logLine(l, time)}</div>
-      <span class="chip ${l.completed ? 'badge-ok' : 'badge-stop'}">${l.completed ? '완료' : '중단'}</span></div>`;
+    html += `<button class="log-item" data-ts="${l.ts}"><div class="log-main">${kind}<b>${escapeHTML(logTitle(l))}</b>${logLine(l, time)}</div>
+      <span class="chip ${l.completed ? 'badge-ok' : 'badge-stop'}">${l.completed ? '완료' : '중단'}</span></button>`;
   }
   $('log-list').innerHTML = html;
 }
+
+/* ---------- 기록 상세: 서킷 운동 빼기 / 기록 삭제 ---------- */
+let openLog = null; // { ts, keep:Set }
+const readLog = () => JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+const writeLog = log => localStorage.setItem(LOG_KEY, JSON.stringify(log));
+
+function renderLogModal() {
+  const l = readLog().find(x => x.ts === openLog.ts);
+  const d = new Date(l.ts);
+  $('lm-kind').textContent = TYPE_LABEL[logType(l)];
+  $('lm-title').textContent = logTitle(l);
+  $('lm-meta').innerHTML = `${d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })} `
+    + `${d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })}<br>${l.sets}/${l.total}세트 · ${fmt(l.sec)}`
+    + (l.weight ? ` · ${weightLabel(l.weight)}` : '') + (l.mm ? ` · ${BOARDS[l.board]} ${l.mm}mm` : '');
+  const isCx = logType(l) === 'circuit';
+  $('lm-body').innerHTML = isCx
+    ? '<p class="lm-hint">안 한 운동은 눌러서 빼세요</p>' + (l.items || []).map((n, k) => `
+      <button class="cx-row lm-row ${openLog.keep.has(k) ? '' : 'off'}" data-k="${k}">
+        <span class="cx-box"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>${escapeHTML(n)}</button>`).join('')
+    : '';
+  $('lm-save').hidden = !isCx;
+}
+
+$('log-list').addEventListener('click', e => {
+  const b = e.target.closest('[data-ts]');
+  if (!b) return;
+  const l = readLog().find(x => x.ts === +b.dataset.ts);
+  if (!l) return;
+  openLog = { ts: l.ts, keep: new Set((l.items || []).map((_, k) => k)) };
+  renderLogModal();
+  $('log-modal').hidden = false;
+});
+$('lm-body').addEventListener('click', e => {
+  const b = e.target.closest('[data-k]');
+  if (!b) return;
+  const k = +b.dataset.k;
+  if (openLog.keep.has(k)) openLog.keep.delete(k); else openLog.keep.add(k);
+  renderLogModal();
+});
+const closeLogModal = () => { $('log-modal').hidden = true; openLog = null; renderHistory(); };
+$('lm-close').addEventListener('click', closeLogModal);
+$('lm-save').addEventListener('click', () => {
+  const log = readLog();
+  const l = log.find(x => x.ts === openLog.ts);
+  const items = l.items.filter((_, k) => openLog.keep.has(k));
+  if (!items.length) {
+    if (!confirm('운동을 모두 뺐어요. 이 기록을 삭제할까요?')) return;
+    writeLog(log.filter(x => x.ts !== openLog.ts));
+  } else {
+    l.items = items;
+    writeLog(log);
+  }
+  closeLogModal();
+});
+$('lm-del').addEventListener('click', () => {
+  if (!confirm('이 기록을 삭제할까요?')) return;
+  writeLog(readLog().filter(x => x.ts !== openLog.ts));
+  closeLogModal();
+});
 
 // 완료한 운동만 집계: 최근 8주 주별 횟수 + 종류별 세부 그래프
 function chartsHTML(done, weekStart) {

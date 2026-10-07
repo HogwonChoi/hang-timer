@@ -47,6 +47,18 @@ body[data-phase="rest"]   { --accent: var(--rest); }
 body[data-phase="switch"] { --accent: var(--switch); }
 body[data-phase="done"]   { --accent: var(--rest); }
 
+/* 신호등: 남은 시간 초록 → 노랑(3초) → 빨강(1초). 링·숫자·화면 테두리에 적용 */
+body { --light: var(--accent); }
+body[data-light="green"]  { --light: #2FD3A0; }
+body[data-light="yellow"] { --light: #FFD23F; }
+body[data-light="red"]    { --light: #FF4545; }
+#light-glow {
+  position: fixed; inset: 0; z-index: 5; pointer-events: none;
+  box-shadow: inset 0 0 0 0 transparent; transition: box-shadow .25s ease;
+}
+body[data-light="yellow"] #light-glow { box-shadow: inset 0 0 0 5px #FFD23F, inset 0 0 110px 20px rgba(255, 210, 63, .32); }
+body[data-light="red"] #light-glow { box-shadow: inset 0 0 0 8px #FF4545, inset 0 0 140px 30px rgba(255, 69, 69, .42); }
+
 button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
 [hidden] { display: none !important; }
 svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -265,7 +277,7 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
 .cx-row.on { opacity: .55; }
 .cx-row.on .cx-box { background: var(--rest); border-color: var(--rest); color: var(--bg); }
 .cx-rest { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
-.cx-rest-time { font-size: min(26vw, 120px); font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: var(--accent); }
+.cx-rest-time { font-size: min(26vw, 120px); font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: var(--light); }
 .cx-rest p { color: var(--muted); font-size: 15px; }
 .cx-rest .btn-ghost { padding: 0 24px; margin-top: 12px; }
 #circuit .progress { margin-top: auto; }
@@ -306,14 +318,15 @@ svg.art { stroke: none; display: block; width: 100%; height: 100%; }
 .ring { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-width: 7; }
 .ring-bg { stroke: rgba(255,255,255,.06); }
-.ring-fg { stroke: var(--accent); stroke-linecap: round; stroke-dasharray: 565.49; stroke-dashoffset: 0; }
+.ring-fg { stroke: var(--light); stroke-linecap: round; stroke-dasharray: 565.49; stroke-dashoffset: 0; transition: stroke .2s; }
 .count {
   position: absolute; inset: 0;
   display: grid; place-items: center;
   font-size: 44cqw; font-weight: 700; line-height: 1;
   letter-spacing: -.05em; font-variant-numeric: tabular-nums;
 }
-.count.last { color: var(--accent); }
+.count.last { color: var(--light); }
+body[data-light="yellow"] .count, body[data-light="red"] .count { color: var(--light); }
 .count.beat { animation: beat .5s cubic-bezier(.2,.9,.3,1); }
 @keyframes beat { from { transform: scale(1.14); } to { transform: scale(1); } }
 
@@ -374,6 +387,7 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 /* ---------- 기록 화면 ---------- */
 .log-day { font-size: 13px; font-weight: 600; color: var(--muted); margin: 22px 4px 8px; }
 .log-item {
+  width: 100%; text-align: left;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 14px 16px; border-radius: 18px; margin-bottom: 8px;
   background: var(--surface); border: 1px solid var(--line);
@@ -426,6 +440,15 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 }
 .modal-card b { font-size: 19px; }
 .modal-card p { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
+.log-card { max-height: 86dvh; overflow-y: auto; }
+.log-card .log-kind { margin: 0; }
+.lm-hint { font-size: 13px !important; margin: 4px 0 6px !important; }
+#lm-body { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.lm-row { min-height: 52px; font-size: 16px; }
+.lm-row .cx-box { background: var(--rest); border-color: var(--rest); color: var(--bg); }
+.lm-row.off { opacity: .45; text-decoration: line-through; }
+.lm-row.off .cx-box { background: none; border-color: rgba(255,255,255,.25); color: transparent; }
+.danger-ghost { color: var(--hang); }
 
 /* ---------- 가로 모드: 왼쪽 큰 타이머, 오른쪽 정보 (보드 앞에 거치하고 멀리서 보기) ---------- */
 @media (orientation: landscape) and (min-width: 640px) {

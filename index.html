@@ -119,8 +119,8 @@
         </div>
         <div class="row">
           <div><div class="row-title">세트 사이 휴식</div></div>
-          <div class="stepper" data-key="ilvRest" data-step="15" data-min="15" data-max="600">
-            <button data-d="-1" aria-label="줄이기">−</button><output>120</output><span class="unit">s</span><button data-d="1" aria-label="늘리기">+</button>
+          <div class="stepper" data-key="ilvRestMin" data-step="1" data-min="1" data-max="10">
+            <button data-d="-1" aria-label="줄이기">−</button><output>2</output><span class="unit">분</span><button data-d="1" aria-label="늘리기">+</button>
           </div>
         </div>
       </section>
@@ -139,12 +139,13 @@
         <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
       <h1 class="h-title">서킷 운동 목록</h1>
-      <span class="spacer"></span>
+      <button class="text-btn text-strong" id="btn-cx-share">공유</button>
     </header>
     <div class="cx-add">
       <input id="cx-new" class="name-input" placeholder="운동 이름 (예: 턱걸이 ×10)" maxlength="24" autocomplete="off">
       <button class="btn-add" id="btn-cx-add">추가</button>
     </div>
+    <button class="link-btn import-btn" id="btn-cx-import">공유받은 목록 붙여넣기</button>
     <ol class="ed-list" id="cx-list"></ol>
   </main>
 
@@ -364,8 +365,21 @@
     </div>
     <div id="charts"></div>
     <div id="log-list"></div>
+
+    <div class="modal" id="log-modal" hidden>
+      <div class="modal-card log-card">
+        <span class="log-kind" id="lm-kind"></span>
+        <b id="lm-title"></b>
+        <p id="lm-meta"></p>
+        <div id="lm-body"></div>
+        <button id="lm-save" class="btn-pause">저장</button>
+        <button id="lm-del" class="btn-ghost danger-ghost">이 기록 삭제</button>
+        <button id="lm-close" class="text-btn">닫기</button>
+      </div>
+    </div>
   </main>
 
+  <div id="light-glow"></div>
   <script src="art.js"></script>
   <script src="app.js"></script>
 </body>
