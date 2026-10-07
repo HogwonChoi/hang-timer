@@ -45,7 +45,7 @@ const SETTINGS_KEY = 'hang-settings';
 const LOG_KEY = 'hang-log';
 const ROUTINES_KEY = 'hang-routines';
 const settings = Object.assign(
-  { routine: 'r1', hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false, board: 'bm2000', hold: null },
+  { routine: 'r1', hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false, board: 'bm2000', hold: null, weight: 0 },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'),
 );
 delete settings.voice; // 이전 버전 설정값 정리
@@ -425,8 +425,21 @@ function start() {
   run = { steps, totalSets, i: -1, paused: false, startedAt: Date.now(), setsDone: 0, cfg: { ...settings }, title: rt.title };
   $('run-routine').textContent = rt.title;
   show('run');
+  warmUpSound();
   enterStep(0, performance.now());
   loop();
+}
+
+// 아이폰은 첫 소리가 늦게 나는 경우가 있어서, 시작 준비 때 작은 소리로 미리 깨워둔다
+function warmUpSound() {
+  if (settings.sound === 'voice' && 'speechSynthesis' in window) {
+    const u = new SpeechSynthesisUtterance('Get ready');
+    u.lang = 'en-US';
+    if (voice) u.voice = voice;
+    speechSynthesis.speak(u);
+  } else {
+    tone(880, 0.05, 0.12, 0.1, 'square');
+  }
 }
 
 function enterStep(i, at) {
@@ -434,6 +447,7 @@ function enterStep(i, at) {
   run.i = i;
   run.end = at + st.dur * 1000;
   run.lastSec = st.dur;
+  run.lastTick = performance.now();
   document.body.dataset.phase = st.type;
   $('screen-tip').hidden = st.type !== 'prep';
   renderStep();
@@ -468,7 +482,13 @@ function renderStep() {
 function tick() {
   if (!run || run.paused) return;
   const now = performance.now();
-  // 백그라운드 복귀 시 밀린 단계를 한 번에 처리
+  // 화면 꺼짐 이벤트 없이 앱이 멈췄다 돌아온 경우(3초 넘게 틱이 끊김): 그 시간은 멈춘 것으로 치고 물어본다
+  if (run.lastTick && now - run.lastTick > 3000) {
+    run.end += now - run.lastTick;
+    run.lastTick = now;
+    return interrupted();
+  }
+  run.lastTick = now;
   while (now >= run.end) {
     const st = run.steps[run.i];
     if (st.type === 'hang') {
@@ -514,6 +534,7 @@ function togglePause() {
   const now = performance.now();
   if (run.paused) {
     run.end = now + run.remain;
+    run.lastTick = now;
     run.paused = false;
     $('btn-pause').textContent = '일시정지';
     document.body.classList.remove('paused');
@@ -561,6 +582,7 @@ function finish(completed) {
   $('d-sets').textContent = r.setsDone;
   $('d-hang').textContent = `${r.cfg.hang}s`;
   renderHold();
+  renderWeight();
   show('done');
 }
 
@@ -589,12 +611,22 @@ $('board-art').addEventListener('click', e => {
 });
 function saveHold() {
   const h = findHold(settings.board, settings.hold);
-  if (!doneTs || !h) return;
+  if (!doneTs) return;
   const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
   const entry = log.find(l => l.ts === doneTs);
-  if (entry) { entry.board = settings.board; entry.mm = h.mm; entry.hold = h.id; }
+  if (!entry) return;
+  if (h) { entry.board = settings.board; entry.mm = h.mm; entry.hold = h.id; }
+  entry.weight = settings.weight;
   localStorage.setItem(LOG_KEY, JSON.stringify(log));
 }
+
+/* ================= 완료 후 추가 중량 ================= */
+const weightLabel = w => (w === 0 ? '맨몸' : `${w > 0 ? '+' : '−'}${Math.abs(w)}kg`);
+const renderWeight = () => { $('v-weight').textContent = weightLabel(settings.weight); };
+[['btn-w-minus', -2.5], ['btn-w-plus', 2.5]].forEach(([id, d]) => $(id).addEventListener('click', () => {
+  settings.weight = Math.min(40, Math.max(-40, settings.weight + d));
+  saveSettings(); renderWeight();
+}));
 
 $('btn-start').addEventListener('click', start);
 $('btn-pause').addEventListener('click', togglePause);
@@ -605,8 +637,31 @@ $('btn-stop').addEventListener('click', () => {
 });
 $('btn-done').addEventListener('click', () => { saveHold(); document.body.dataset.phase = 'idle'; show('setup'); });
 
+// 화면이 꺼지거나 앱을 벗어나면 소리가 멈추므로 자동 일시정지 → 돌아오면 이어갈지 물어본다
+function interrupted() {
+  if (!run) return;
+  if (!run.paused) togglePause();
+  $('resume-modal').hidden = false;
+}
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && run) { lockScreen(); if (ctx) ctx.resume(); }
+  if (!run) return;
+  if (document.visibilityState === 'hidden') {
+    if (!run.paused) { togglePause(); run.autoPaused = true; }
+  } else {
+    lockScreen();
+    if (ctx) ctx.resume();
+    if (run.autoPaused) { run.autoPaused = false; interrupted(); }
+  }
+});
+$('btn-resume').addEventListener('click', () => {
+  $('resume-modal').hidden = true;
+  if (run && run.paused) togglePause();
+});
+$('btn-restart-step').addEventListener('click', () => {
+  $('resume-modal').hidden = true;
+  if (!run) return;
+  if (run.paused) togglePause();
+  enterStep(run.i, performance.now());
 });
 
 /* ================= 기록 ================= */
@@ -629,7 +684,8 @@ function renderHistory() {
     const day = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
     if (day !== lastDay) { html += `<div class="log-day">${day}</div>`; lastDay = day; }
     const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
-    const hold = l.mm ? `<span class="chip">${BOARDS[l.board]} · ${l.mm}mm</span>` : '';
+    const hold = (l.mm ? `<span class="chip">${BOARDS[l.board]} · ${l.mm}mm</span>` : '')
+      + (l.weight ? `<span class="chip">${weightLabel(l.weight)}</span>` : '');
     html += `<div class="log-item"><div><b>${escapeHTML(logTitle(l))}</b>
       <small>${time} · 매달리기 ${l.hang}초 · ${l.sets}/${l.total}세트 · ${fmt(l.sec)}</small>${hold}</div>
       <span class="chip ${l.completed ? 'badge-ok' : 'badge-stop'}">${l.completed ? '완료' : '중단'}</span></div>`;

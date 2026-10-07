@@ -1,6 +1,7 @@
 'use strict';
 /* art.js — 행보드 인터벌 타이머용 인라인 SVG 아트 (의존성 없음)
    전역: handSVG(fingers, side, grip) / BOARD_HOLDS / BOARD_NAMES / boardSVG(boardKey, selectedId)
+   handSVG 는 크림프 종류(grip)만 그린다. fingers·side 는 호출 호환용 인자
    주의: 전역 CSS 가 svg{fill:none;stroke:currentColor;stroke-width:2} 이므로
         모든 도형은 fill / stroke 를 직접 선언한다. 내부 헬퍼는 IIFE 안에 가둔다. */
 
@@ -9,9 +10,7 @@ const ART_ = (function () {
   /* ================= 디자인 토큰 ================= */
   const T = {
     mint: '#2FD3A0', ink: '#0D0E11',
-    sk0: '#95572F', sk1: '#E7AF85', sk2: '#FBE3C9', sk3: '#D39A6D', sk4: '#8B4E28',
-    of0: '#53402E', of1: '#B08E73', of2: '#CDAB90', of3: '#856750',
-    crease: '#8A4F2C',
+    text: '#F5F5F6', muted: '#8A8F99',
     wd0: '#F0DFC2', wd1: '#D9C3A0', wd2: '#C09B71', wd3: '#A87C52', wd4: '#7A5433',
     slotA: '#6E4D31', slotB: '#36230F',
     badge: '#FFFFFF', badgeInk: '#241A10', engrave: '#5C3F27',
@@ -25,118 +24,34 @@ const ART_ = (function () {
     ` font-size="${size}" font-weight="${w || 800}" font-family="system-ui,-apple-system,sans-serif"` +
     ` style="font-variant-numeric:tabular-nums">${s}</text>`;
 
-  /* ================= 손 ================= */
-  // 캔버스 96 높이 / 한 손 로컬 폭 84. 보드 립 0~8, 앞면 8~29, 밑그림자 29~32.
-  const HAND_H = 96;
-  const FING = [['p', 12, 11], ['r', 29, 12.5], ['m', 46, 13], ['i', 63, 12.5]];
-  const GRIPSET = {            // hy = 손등 윗선(MCP). 낮을수록 손이 보드에 붙는다.
-    open: { hy: 56, pip: 36, bulge: 0, lock: 0 },
-    half: { hy: 50, pip: 28, bulge: 1, lock: 0 },
-    full: { hy: 46, pip: 24, bulge: 1.3, lock: 1 },
+  /* ================= 그립 아이콘 ================= */
+  // 옆에서 본 손가락 하나 + 엣지. 오른쪽이 벽, 엣지 윗면(y=18)에 손끝이 걸린다.
+  // 점: 끝(tip) → DIP → PIP → MCP → 손목. 크림프 종류는 마디 각도로 구분한다.
+  //  open: 손가락이 거의 펴진 채 엣지 모서리에 걸침 (PIP 거의 180°)
+  //  half: PIP 약 90°, DIP 살짝 굽힘
+  //  full: PIP 90° 미만으로 바짝 접고 DIP 는 뒤로 젖힘(손끝 평평), 엄지로 검지를 덮음
+  const POSE = {
+    open: '45,16.5 37.5,18.5 33,29 29.5,41 28,52',
+    half: '45,16.5 39,10.5 28.5,11 27.5,25 26.5,52',
+    full: '46,16.5 37.5,15.5 31,6.5 29,21 27.5,52',
   };
-
-  const handDefs = u => `<defs>` +
-    `<linearGradient id="f${u}" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="${T.sk0}"/><stop offset=".2" stop-color="${T.sk1}"/>` +
-    `<stop offset=".44" stop-color="${T.sk2}"/><stop offset=".78" stop-color="${T.sk3}"/>` +
-    `<stop offset="1" stop-color="${T.sk4}"/></linearGradient>` +
-    `<linearGradient id="o${u}" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="${T.of0}"/><stop offset=".24" stop-color="${T.of1}"/>` +
-    `<stop offset=".5" stop-color="${T.of2}"/><stop offset=".8" stop-color="${T.of3}"/>` +
-    `<stop offset="1" stop-color="${T.of0}"/></linearGradient>` +
-    `<radialGradient id="d${u}" cx=".4" cy=".26" r=".92">` +
-    `<stop offset="0" stop-color="${T.sk2}"/><stop offset=".5" stop-color="${T.sk1}"/>` +
-    `<stop offset="1" stop-color="${T.sk4}"/></radialGradient>` +
-    `<linearGradient id="r${u}" x1="0" y1="0" x2="1" y2="0">` +
-    `<stop offset="0" stop-color="${T.sk4}"/><stop offset=".34" stop-color="${T.sk3}"/>` +
-    `<stop offset=".62" stop-color="${T.sk1}"/><stop offset="1" stop-color="#6F3E1F"/></linearGradient>` +
-    `<linearGradient id="bt${u}" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="${T.wd0}"/><stop offset="1" stop-color="${T.wd1}"/></linearGradient>` +
-    `<linearGradient id="bf${u}" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="${T.wd2}"/><stop offset="1" stop-color="${T.wd3}"/></linearGradient>` +
-    `<linearGradient id="bs${u}" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0" stop-color="#2A1709" stop-opacity=".55"/>` +
-    `<stop offset="1" stop-color="#2A1709" stop-opacity="0"/></linearGradient></defs>`;
-
-  // 보드 앞면(손가락 뒤) / 보드 윗립(손끝을 가려 "엣지 너머로 넘어간" 느낌)
-  const boardBack = (W, u) =>
-    `<rect x="-2" y="8" width="${W + 4}" height="21" fill="url(#bf${u})" stroke="none"/>` +
-    `<rect x="-2" y="13.5" width="${W + 4}" height="1.3" fill="${T.wd4}" fill-opacity=".26" stroke="none"/>` +
-    `<rect x="-2" y="21" width="${W + 4}" height="1.1" fill="${T.wd4}" fill-opacity=".2" stroke="none"/>` +
-    `<rect x="-2" y="29" width="${W + 4}" height="3.4" fill="#55341A" stroke="none"/>`;
-  const boardLip = (W, u) =>
-    `<rect x="-2" y="8" width="${W + 4}" height="11" fill="url(#bs${u})" stroke="none"/>` +
-    `<rect x="-2" y="-2" width="${W + 4}" height="10" fill="url(#bt${u})" stroke="none"/>` +
-    `<rect x="-2" y="-2" width="${W + 4}" height="2.4" fill="#FAF0DD" fill-opacity=".8" stroke="none"/>`;
-
-  function oneHand(fingers, g, u) {
-    const hy = g.hy, on = k => fingers.indexOf(k) >= 0;
-    const offTop = Math.max(hy - 18, 37);   // 접힌 손가락은 엣지에서 확실히 떨어뜨린다
-    let s = '';
-
-    // 팔뚝 (손등보다 좁게 — 아래로 화면 밖까지 이어진다)
-    s += `<path d="M26,${hy + 22} C23,${hy + 36} 24,${hy + 50} 26,${hy + 64}` +
-      ` L56,${hy + 64} C58,${hy + 50} 59,${hy + 36} 56,${hy + 22} Z" fill="url(#r${u})" stroke="none"/>`;
-
-    // 손가락 (원통 그라디언트로 손가락 사이 경계를 만든다)
-    FING.forEach(([k, cx, w]) => {
-      const act = on(k), top = act ? 3 : offTop, fw = act ? w : w + 1.5;
-      s += `<rect x="${cx - fw / 2}" y="${top}" width="${fw}" height="${hy + 12 - top}" rx="${fw / 2}"` +
-        ` fill="url(#${act ? 'f' : 'o'}${u})" stroke="${act ? 'none' : T.of0}" stroke-opacity="${act ? 0 : .5}" stroke-width="${act ? 0 : .9}"/>`;
-      if (!act) s += `<path d="M${cx - fw / 2 + 1.8},${offTop + 7} Q${cx},${offTop + 10.5} ${cx + fw / 2 - 1.8},${offTop + 7}"` +
-        ` fill="none" stroke="${T.of0}" stroke-opacity=".65" stroke-width="1.3" stroke-linecap="round"/>`;
-    });
-
-    // 손등 — 손가락 뿌리를 덮어 MCP 라인을 만들고, 손목 쪽으로 좁아진다
-    s += `<path d="M3,${hy + 6} C3,${hy - 2} 9,${hy - 7} 19,${hy - 8}` +
-      ` C33,${hy - 10} 53,${hy - 10} 65,${hy - 7} C73,${hy - 5} 77,${hy + 1} 77,${hy + 9}` +
-      ` C77,${hy + 16} 74,${hy + 21} 70,${hy + 25} C66,${hy + 29} 60,${hy + 31} 52,${hy + 31}` +
-      ` L28,${hy + 31} C17,${hy + 31} 8,${hy + 25} 5,${hy + 16} Z" fill="url(#d${u})" stroke="none"/>`;
-    // 힘줄
-    s += `<path d="M23,${hy + 3} L28,${hy + 21} M40,${hy + 1} L41,${hy + 23} M58,${hy + 2} L55,${hy + 21}"` +
-      ` fill="none" stroke="${T.sk2}" stroke-opacity=".2" stroke-width="2.2" stroke-linecap="round"/>`;
-
-    // 마디(PIP): half/full 은 볼록하게 솟고, open 은 주름만
-    FING.forEach(([k, cx, w]) => {
-      if (!on(k)) return;
-      s += `<path d="M${cx - w / 2 + 1},${hy - 3} Q${cx},${hy + 1.5} ${cx + w / 2 - 1},${hy - 3}"` +
-        ` fill="none" stroke="${T.crease}" stroke-opacity=".45" stroke-width="1.4" stroke-linecap="round"/>`;
-      const y = g.pip;
-      let cy = y;
-      if (g.bulge) {
-        const kw = w + 4.2 * g.bulge, kh = 9.5 * g.bulge;
-        s += `<rect x="${cx - kw / 2}" y="${y - kh / 2}" width="${kw}" height="${kh}" rx="${kh / 2}"` +
-          ` fill="url(#f${u})" stroke="none"/>`;
-        s += `<ellipse cx="${cx - 1}" cy="${y - 1.8}" rx="${(kw * 0.25).toFixed(1)}" ry="${(kh * 0.2).toFixed(1)}"` +
-          ` fill="#FFF4E6" fill-opacity=".5" stroke="none"/>`;
-        cy = y + kh / 2 + 1.6;
-      }
-      s += `<path d="M${cx - w / 2 + 1},${cy} Q${cx},${cy + 3.4} ${cx + w / 2 - 1},${cy}"` +
-        ` fill="none" stroke="${T.crease}" stroke-opacity=".5" stroke-width="1.3" stroke-linecap="round"/>`;
-    });
-
-    // 엄지 — full 은 검지 위로 감싼다(썸락)
-    s += g.lock
-      ? `<path d="M66,${hy + 24} C76,${hy + 16} 80,${hy - 1} 75,${hy - 9} C71,${hy - 15} 62,${hy - 17} 57,${hy - 13}` +
-      ` C53,${hy - 9} 56,${hy - 3} 61,${hy - 5} C66,${hy - 7} 68,${hy} 65,${hy + 9}` +
-      ` C63,${hy + 15} 63,${hy + 19} 63,${hy + 23} Z" fill="url(#f${u})" stroke="${T.sk4}" stroke-opacity=".45" stroke-width="1"/>`
-      : `<path d="M66,${hy + 26} C76,${hy + 20} 81,${hy + 8} 79,${hy - 2} C78,${hy - 8} 70,${hy - 9} 68,${hy - 1}` +
-      ` C66,${hy + 6} 64,${hy + 16} 63,${hy + 23} Z" fill="url(#f${u})" stroke="${T.sk4}" stroke-opacity=".45" stroke-width="1"/>`;
-    return s;
-  }
+  const THUMB = '19,38 27,26 36.5,14.5';
 
   function hand(fingers, side, grip) {
-    const g = GRIPSET[grip] || GRIPSET.half;
-    const f = (typeof fingers === 'string' && fingers) ? fingers : 'imrp';
-    const two = side === 'both';
-    const W = two ? 176 : 88;
-    const u = nid();
-    const body = oneHand(f, g, u);
-    const wraps = two
-      ? ['<g transform="translate(0,0)">', '<g transform="translate(176,0) scale(-1,1)">']
-      : [side === 'R' ? '<g transform="translate(86,0) scale(-1,1)">' : '<g transform="translate(2,0)">'];
-    return `<svg class="art" viewBox="0 0 ${W} ${HAND_H}">${handDefs(u)}${boardBack(W, u)}` +
-      wraps.map(w => w + body + '</g>').join('') + boardLip(W, u) + '</svg>';
+    const pose = POSE[grip] ? grip : 'half';
+    const line = (pts, color, w) => `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="${w}"` +
+      ' stroke-linecap="round" stroke-linejoin="round"/>';
+    const joints = POSE[pose].split(' ').slice(1, 4).map(p => {
+      const [x, y] = p.split(',');
+      return `<circle cx="${x}" cy="${y}" r="1.3" fill="${T.ink}" fill-opacity=".35" stroke="none"/>`;
+    }).join('');
+    // 손가락 수·양손 여부는 옆 글자(4봉, 양손)가 알려주므로 아이콘은 크림프 모양에만 집중
+    return '<svg class="art" viewBox="15 2 49 50">' +
+      `<rect x="56" y="0" width="8" height="52" rx="1.5" fill="${T.wd3}" stroke="none"/>` +
+      `<rect x="36" y="18" width="22" height="7" rx="2" fill="${T.wd1}" stroke="none"/>` +
+      line(POSE[pose], T.text, 5.2) + joints +
+      (pose === 'full' ? line(THUMB, T.muted, 4.6) : '') +
+      '</svg>';
   }
 
   /* ================= 보드 ================= */
