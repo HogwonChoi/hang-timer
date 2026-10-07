@@ -23,32 +23,58 @@
         <p class="eyebrow">Fingerboard</p>
         <h1>Hang Timer</h1>
       </div>
-      <button class="icon-btn" id="btn-history" aria-label="기록">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-      </button>
+      <div class="top-actions">
+        <button class="icon-btn" id="btn-history" aria-label="기록">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-settings" aria-label="설정">
+          <svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+        </button>
+      </div>
     </header>
 
     <section class="card">
-      <div class="label">루틴</div>
       <div class="segmented">
         <button class="seg" data-routine="1">1 · 웜업</button>
         <button class="seg" data-routine="2">2 · 마무리</button>
       </div>
-      <ol id="routine-list" class="ex-list"></ol>
+      <button class="list-toggle" id="btn-list" aria-expanded="false">
+        <span id="list-summary">6개 동작 · 6세트</span>
+        <span class="list-toggle-r"><span id="list-label">펼치기</span>
+          <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+      </button>
+      <ol id="routine-list" class="ex-list" hidden></ol>
     </section>
 
-    <section class="card settings">
-      <div class="row">
-        <div>
-          <div class="row-title">매달리기</div>
-          <div class="row-sub" id="rest-hint">휴식 40초</div>
+    <section class="card hang-card">
+      <div class="label">매달리기 · 1세트 = 1분</div>
+      <div class="stepper hang-ctl" data-key="hang" data-step="5" data-min="5" data-max="55">
+        <button data-d="-1" aria-label="줄이기">−</button>
+        <div class="hang-val">
+          <div><output id="v-hang">20</output><span class="unit">s</span></div>
+          <small id="rest-hint">휴식 40초</small>
         </div>
-        <div class="stepper" data-key="hang" data-step="5" data-min="5" data-max="55">
-          <button data-d="-1" aria-label="줄이기">−</button>
-          <output id="v-hang">20</output><span class="unit">s</span>
-          <button data-d="1" aria-label="늘리기">+</button>
-        </div>
+        <button data-d="1" aria-label="늘리기">+</button>
       </div>
+    </section>
+
+    <div class="start-wrap">
+      <div class="total">총 <b id="total">0:00</b> · <span id="total-sets">0</span>세트</div>
+      <button id="btn-start" class="btn-primary">시작</button>
+    </div>
+  </main>
+
+  <!-- 설정 화면 -->
+  <main id="settings" class="screen" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="btn-settings-back" aria-label="뒤로">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1 class="h-title">설정</h1>
+      <span class="spacer"></span>
+    </header>
+
+    <section class="card settings">
       <div class="row">
         <div>
           <div class="row-title">손 바꾸기</div>
@@ -92,11 +118,6 @@
         </div>
       </div>
     </section>
-
-    <div class="start-wrap">
-      <div class="total">총 <b id="total">0:00</b> · <span id="total-sets">0</span>세트</div>
-      <button id="btn-start" class="btn-primary">시작</button>
-    </div>
   </main>
 
   <!-- 운동 화면 -->
@@ -123,7 +144,7 @@
     </div>
 
     <section class="grip-card">
-      <div class="fingers" id="fingers"></div>
+      <div class="grip-art" id="grip-art"></div>
       <div class="grip-info">
         <div class="grip-chips">
           <span class="chip chip-accent" id="grip-tag">지금</span>
@@ -155,6 +176,11 @@
         <div><b id="d-sets">0</b><span>세트</span></div>
         <div><b id="d-hang">20s</b><span>매달리기</span></div>
       </div>
+      <section class="hold-pick">
+        <div class="label">오늘 사용한 홀드</div>
+        <div class="segmented" id="board-seg"></div>
+        <div class="mm-grid" id="mm-grid"></div>
+      </section>
     </div>
     <button id="btn-done" class="btn-primary btn-light">확인</button>
   </main>

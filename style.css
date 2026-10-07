@@ -86,16 +86,16 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-top: 2px;
 }
 .chip-accent { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 
-/* ---------- 손가락 아이콘 ---------- */
-.fingers { display: flex; align-items: flex-end; gap: 4px; height: 30px; flex: none; }
-.fingers i { display: block; width: 7px; border-radius: 4px; background: var(--text); }
-.fingers i:nth-child(1) { height: 82%; }
-.fingers i:nth-child(2) { height: 100%; }
-.fingers i:nth-child(3) { height: 90%; }
-.fingers i:nth-child(4) { height: 66%; }
-.fingers i.off { opacity: .14; }
+/* ---------- 그립 그림 ---------- */
+svg.art { stroke: none; display: block; width: 100%; height: 100%; }
+.art .h-on { fill: var(--text); }
+.art .h-off { fill: rgba(255, 255, 255, .28); }
+.art .h-thumb { stroke: var(--text); stroke-width: 7; stroke-linecap: round; }
+.art .h-board { fill: #B48B63; }
 
-/* ---------- 설정 화면 ---------- */
+/* ---------- 메인 화면 ---------- */
+.top-actions { display: flex; gap: 8px; }
+.spacer { width: 44px; }
 .segmented {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
   padding: 4px; border-radius: 14px; background: var(--surface-2);
@@ -103,14 +103,30 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-top: 2px;
 .seg { height: 42px; border-radius: 11px; font-size: 15px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s; }
 .seg.active { background: #2C3039; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.3); }
 
+.list-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 2px 0; font-size: 15px; font-weight: 600;
+}
+.list-toggle-r { display: flex; align-items: center; gap: 2px; font-size: 13px; color: var(--muted); }
+.list-toggle svg { width: 18px; height: 18px; transition: transform .2s; }
+.list-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+
 .ex-list { list-style: none; margin-top: 8px; }
-.ex-list li { display: flex; align-items: center; gap: 14px; padding: 11px 2px; }
+.ex-list li { display: flex; align-items: center; gap: 14px; padding: 10px 2px; }
 .ex-list li + li { border-top: 1px solid var(--line); }
-.ex-list .fingers { height: 20px; gap: 3px; width: 34px; }
-.ex-list .fingers i { width: 5px; }
+.ex-art { width: 58px; height: 30px; flex: none; display: flex; justify-content: center; }
+.ex-art svg { width: auto; }
 .ex-name { flex: 1; font-size: 15px; font-weight: 600; }
-.ex-name small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 2px; }
 .ex-tags { display: flex; gap: 6px; }
+
+.hang-ctl { justify-content: space-between; }
+.hang-ctl button { width: 56px; height: 56px; border-radius: 18px; font-size: 28px; }
+.hang-val { text-align: center; }
+.hang-val output { font-size: 52px; font-weight: 800; letter-spacing: -.03em; min-width: 0; }
+.hang-val .unit { font-size: 20px; margin: 0 0 0 2px; width: auto; }
+.hang-val small { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- 설정 화면 ---------- */
 
 .settings { padding-top: 4px; padding-bottom: 4px; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; }
@@ -181,16 +197,16 @@ h1 { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin-top: 2px;
 @keyframes beat { from { transform: scale(1.14); } to { transform: scale(1); } }
 
 .grip-card {
-  display: flex; align-items: center; gap: 18px;
-  padding: 18px 20px; border-radius: 22px;
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 18px; border-radius: 22px;
   background: var(--surface); border: 1px solid var(--line);
 }
-.grip-card .fingers { height: 54px; gap: 6px; }
-.grip-card .fingers i { width: 12px; border-radius: 6px; }
+.grip-art { width: 112px; height: 60px; flex: none; display: flex; justify-content: center; }
+.grip-art svg { width: auto; }
 .grip-info { min-width: 0; }
 .grip-chips { display: flex; gap: 6px; }
-.grip-name { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margin-top: 8px; }
-.grip-sub { font-size: 14px; color: var(--muted); margin-top: 3px; }
+.grip-name { font-size: 22px; font-weight: 800; letter-spacing: -.02em; margin-top: 8px; white-space: nowrap; }
+.grip-sub { font-size: 14px; color: var(--muted); margin-top: 4px; }
 .next { min-height: 20px; margin-top: 12px; text-align: center; font-size: 14px; color: var(--muted); }
 
 .controls { margin-top: auto; padding-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -207,13 +223,26 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 /* ---------- 완료 화면 ---------- */
 .done-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .done-check {
-  width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center;
+  width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center;
   color: var(--rest); background: color-mix(in srgb, var(--rest) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--rest) 30%, transparent);
 }
-.done-check svg { width: 46px; height: 46px; stroke-width: 2.4; }
-.done h2 { font-size: 30px; font-weight: 800; margin-top: 22px; }
+.done-check svg { width: 38px; height: 38px; stroke-width: 2.4; }
+.done h2 { font-size: 28px; font-weight: 800; margin-top: 18px; }
 .done-sub { color: var(--muted); margin-top: 6px; }
+
+.hold-pick { width: 100%; margin-top: 26px; text-align: left; }
+.hold-pick .segmented { grid-template-columns: repeat(3, 1fr); }
+.hold-pick .seg { font-size: 14px; }
+.mm-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 10px; }
+.mm {
+  height: 46px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.mm small { font-size: 10px; font-weight: 600; color: var(--muted); margin-left: 1px; }
+.mm.active { background: var(--rest); border-color: var(--rest); color: var(--bg); }
+.mm.active small { color: var(--bg); }
 
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; margin-top: 28px; }
 .stats > div {
@@ -234,6 +263,7 @@ body.paused .count, body.paused .ring-fg { opacity: .35; }
 }
 .log-item b { font-size: 15px; }
 .log-item small { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
+.log-item small + .chip { margin-top: 8px; }
 .badge-ok { color: var(--rest); background: color-mix(in srgb, var(--rest) 14%, transparent); }
 .badge-stop { color: var(--prep); background: color-mix(in srgb, var(--prep) 14%, transparent); }
 .empty { text-align: center; color: var(--muted); margin-top: 60px; font-size: 15px; }

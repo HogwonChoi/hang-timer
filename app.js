@@ -1,11 +1,20 @@
 'use strict';
 
 /* ================= 운동 정의 ================= */
+// fingers: i=검지 m=중지 r=약지 p=새끼
 const EX = {
-  half4: { name: '4봉 하프크림프', en: 'Half Crimp · 4 Fingers', fingers: 4 },
-  open3: { name: '3봉 오픈크림프', en: 'Open Crimp · 3 Fingers', fingers: 3 },
-  full4: { name: '4봉 풀크림프', en: 'Full Crimp · 4 Fingers', fingers: 4 },
-  full3: { name: '3봉 풀크림프', en: 'Full Crimp · 3 Fingers', fingers: 3 },
+  half4: { name: '4봉 하프크림프', grip: 'half', fingers: 'imrp' },
+  open3: { name: '3봉 오픈크림프', grip: 'open', fingers: 'imr' },
+  full4: { name: '4봉 풀크림프', grip: 'full', fingers: 'imrp' },
+  full3: { name: '3봉 풀크림프', grip: 'full', fingers: 'imr' },
+};
+const GRIP_EN = { half: 'Half Crimp', open: 'Open Crimp', full: 'Full Crimp' };
+
+// 완료 후 선택하는 홀드 (보드별 깊이 mm)
+const BOARDS = {
+  bm1000: { name: 'BM 1000', mm: [15, 20, 25, 45, 50, 53] },
+  bm2000: { name: 'BM 2000', mm: [15, 20, 22, 26, 30, 33, 35, 40, 45, 50, 53] },
+  crimp: { name: '크림프', mm: [6, 8, 10] },
 };
 
 // one: 한손 세트(왼손 → 손 바꾸기 → 오른손)
@@ -36,7 +45,7 @@ const SIDE_LABEL = { both: '양손', L: '왼손', R: '오른손' };
 const SETTINGS_KEY = 'hang-settings';
 const LOG_KEY = 'hang-log';
 const settings = Object.assign(
-  { routine: 1, hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5 },
+  { routine: 1, hang: 20, sw: 10, prep: 10, sound: 'beep', cd: 5, listOpen: false, board: 'bm2000', mm: null },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'),
 );
 delete settings.voice; // 이전 버전 설정값 정리
@@ -151,13 +160,35 @@ function releaseScreen() { if (wakeLock) wakeLock.release(); wakeLock = null; }
 
 /* ================= DOM ================= */
 const $ = id => document.getElementById(id);
-const screens = ['setup', 'run', 'done', 'history'];
+const screens = ['setup', 'settings', 'run', 'done', 'history'];
 function show(name) {
   screens.forEach(s => { $(s).hidden = s !== name; });
   window.scrollTo(0, 0);
 }
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
-const fingersHTML = n => [1, 2, 3, 4].map(i => `<i class="${i > n ? 'off' : ''}"></i>`).join('');
+
+/* ================= 그립 그림 ================= */
+// 앞에서 본 손: 보드 엣지에 걸린 손가락(흰색), 안 쓰는 손가락은 접혀서 흐리게
+const FINGER_X = [['p', 8], ['r', 17.5], ['m', 27], ['i', 36.5]];
+function handSVG(fingers, side) {
+  const hands = side === 'both' ? ['L', 'R'] : [side === 'R' ? 'R' : 'L'];
+  const CW = 50, GAP = 10;
+  const W = hands.length * CW + (hands.length - 1) * GAP;
+  let body = '';
+  hands.forEach((h, k) => {
+    const ox = k * (CW + GAP);
+    const X = x => (h === 'L' ? ox + x : ox + CW - x);
+    for (const [f, cx] of FINGER_X) {
+      const on = fingers.includes(f);
+      const top = on ? 10 : 27;
+      body += `<rect class="${on ? 'h-on' : 'h-off'}" x="${X(cx) - 3}" y="${top}" width="6" height="${44 - top}" rx="3"/>`;
+    }
+    body += `<rect class="h-on" x="${h === 'L' ? ox + 4.5 : ox + CW - 40}" y="36" width="35.5" height="26" rx="11"/>`;
+    body += `<line class="h-thumb" x1="${X(36)}" y1="56" x2="${X(45)}" y2="45"/>`;
+  });
+  body += `<rect class="h-board" x="-4" y="5" width="${W + 8}" height="13" rx="4"/>`;
+  return `<svg class="art" viewBox="-5 0 ${W + 10} 64">${body}</svg>`;
+}
 
 /* ================= 설정 화면 ================= */
 function renderSetup() {
@@ -170,18 +201,29 @@ function renderSetup() {
       `<span class="chip">${it.one ? '한손 · 좌/우' : '양손'}</span>`,
       it.reps > 1 ? `<span class="chip chip-accent">×${it.reps}</span>` : '',
     ].join('');
-    return `<li><div class="fingers">${fingersHTML(e.fingers)}</div>
-      <div class="ex-name">${e.name}<small>${e.en}</small></div>
+    return `<li><div class="ex-art">${handSVG(e.fingers, it.one ? 'L' : 'both')}</div>
+      <div class="ex-name">${e.name}</div>
       <div class="ex-tags">${tags}</div></li>`;
   }).join('');
+  const open = settings.listOpen;
+  $('routine-list').hidden = !open;
+  $('btn-list').setAttribute('aria-expanded', open);
+  $('list-label').textContent = open ? '접기' : '펼치기';
   $('v-hang').textContent = settings.hang;
   $('v-sw').textContent = settings.sw;
   $('v-prep').textContent = settings.prep;
-  $('rest-hint').textContent = `휴식 ${SET_LEN - settings.hang}초 · 1세트 = 1분`;
+  $('rest-hint').textContent = `휴식 ${SET_LEN - settings.hang}초`;
   const { steps, totalSets } = buildSteps(settings);
+  $('list-summary').textContent = `${ROUTINES[settings.routine].items.length}개 동작 · ${totalSets}세트`;
   $('total').textContent = fmt(steps.reduce((a, s) => a + s.dur, 0));
   $('total-sets').textContent = totalSets;
 }
+
+$('btn-list').addEventListener('click', () => {
+  settings.listOpen = !settings.listOpen; saveSettings(); renderSetup();
+});
+$('btn-settings').addEventListener('click', () => show('settings'));
+$('btn-settings-back').addEventListener('click', () => show('setup'));
 
 document.querySelectorAll('[data-routine]').forEach(b => b.addEventListener('click', () => {
   settings.routine = +b.dataset.routine; saveSettings(); renderSetup();
@@ -234,11 +276,11 @@ function renderStep() {
   const ex = EX[focus.ex];
   $('phase').textContent = PHASE_LABEL[st.type];
   $('run-count').textContent = `세트 ${Math.max(focus.set, 1)} / ${totalSets}`;
-  $('fingers').innerHTML = fingersHTML(ex.fingers);
+  $('grip-art').innerHTML = handSVG(ex.fingers, focus.side);
   $('grip-tag').textContent = st.type === 'hang' ? '지금' : '다음';
   $('grip-hands').textContent = SIDE_LABEL[focus.side] + (focus.reps > 1 ? ` · ${focus.rep}/${focus.reps}` : '');
   $('grip-name').textContent = ex.name;
-  $('grip-sub').textContent = ex.en;
+  $('grip-sub').textContent = `${GRIP_EN[ex.grip]} · ${ex.fingers.length} Fingers`;
 
   const nextHang = steps.slice(i + 1).find(s => s.type === 'hang' && s !== focus);
   const after = steps.slice(steps.indexOf(focus) + 1).find(s => s.type === 'hang');
@@ -333,9 +375,11 @@ function finish(completed) {
   document.body.classList.remove('paused');
   $('btn-pause').textContent = '일시정지';
   const elapsed = Math.round((Date.now() - r.startedAt) / 1000);
+  doneTs = null;
   if (r.setsDone > 0) {
+    doneTs = Date.now();
     const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
-    log.unshift({ ts: Date.now(), routine: r.cfg.routine, hang: r.cfg.hang, sets: r.setsDone, total: r.totalSets, sec: elapsed, completed });
+    log.unshift({ ts: doneTs, routine: r.cfg.routine, hang: r.cfg.hang, sets: r.setsDone, total: r.totalSets, sec: elapsed, completed });
     localStorage.setItem(LOG_KEY, JSON.stringify(log));
   }
   if (!completed) { document.body.dataset.phase = 'idle'; show('setup'); return; }
@@ -346,7 +390,37 @@ function finish(completed) {
   $('d-time').textContent = fmt(elapsed);
   $('d-sets').textContent = r.setsDone;
   $('d-hang').textContent = `${r.cfg.hang}s`;
+  renderHold();
   show('done');
+}
+
+/* ================= 완료 후 홀드 선택 ================= */
+let doneTs = null;
+function renderHold() {
+  $('board-seg').innerHTML = Object.entries(BOARDS).map(([k, b]) =>
+    `<button class="seg ${k === settings.board ? 'active' : ''}" data-board="${k}">${b.name}</button>`).join('');
+  $('mm-grid').innerHTML = BOARDS[settings.board].mm.map(mm =>
+    `<button class="mm ${mm === settings.mm ? 'active' : ''}" data-mm="${mm}">${mm}<small>mm</small></button>`).join('');
+}
+$('board-seg').addEventListener('click', e => {
+  const b = e.target.closest('[data-board]');
+  if (!b) return;
+  settings.board = b.dataset.board;
+  if (!BOARDS[settings.board].mm.includes(settings.mm)) settings.mm = null;
+  saveSettings(); renderHold();
+});
+$('mm-grid').addEventListener('click', e => {
+  const b = e.target.closest('[data-mm]');
+  if (!b) return;
+  settings.mm = settings.mm === +b.dataset.mm ? null : +b.dataset.mm; // 다시 누르면 선택 해제
+  saveSettings(); renderHold();
+});
+function saveHold() {
+  if (!doneTs || !settings.mm) return;
+  const log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]');
+  const entry = log.find(l => l.ts === doneTs);
+  if (entry) { entry.board = settings.board; entry.mm = settings.mm; }
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
 }
 
 $('btn-start').addEventListener('click', start);
@@ -356,7 +430,7 @@ $('btn-stop').addEventListener('click', () => {
   if (!run.paused) togglePause();
   if (confirm('운동을 종료할까요?')) finish(false);
 });
-$('btn-done').addEventListener('click', () => { document.body.dataset.phase = 'idle'; show('setup'); });
+$('btn-done').addEventListener('click', () => { saveHold(); document.body.dataset.phase = 'idle'; show('setup'); });
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && run) { lockScreen(); if (ctx) ctx.resume(); }
@@ -381,8 +455,9 @@ function renderHistory() {
     const day = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
     if (day !== lastDay) { html += `<div class="log-day">${day}</div>`; lastDay = day; }
     const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
+    const hold = l.mm ? `<span class="chip">${BOARDS[l.board].name} · ${l.mm}mm</span>` : '';
     html += `<div class="log-item"><div><b>루틴 ${l.routine} · ${ROUTINES[l.routine].title}</b>
-      <small>${time} · 매달리기 ${l.hang}초 · ${l.sets}/${l.total}세트 · ${fmt(l.sec)}</small></div>
+      <small>${time} · 매달리기 ${l.hang}초 · ${l.sets}/${l.total}세트 · ${fmt(l.sec)}</small>${hold}</div>
       <span class="chip ${l.completed ? 'badge-ok' : 'badge-stop'}">${l.completed ? '완료' : '중단'}</span></div>`;
   }
   $('log-list').innerHTML = html;
